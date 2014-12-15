@@ -26,11 +26,11 @@ extern "C" {
 #endif
 #endif
 
-#ifndef MAXLEN_FILENAME
-#define MAXLEN_FILENAME				256
-#endif
-
 extern char    *__SIMSPIDER_VERSION ;
+
+#define SIMSPIDER_MAXLEN_FILENAME		256
+#define SIMSPIDER_MAXLEN_URL			2048
+#define SIMSPIDER_VALID_FILE_EXTNAME_SET	1024
 
 #define SIMSPIDER_INFO_OK			0
 #define SIMSPIDER_ERROR_ALLOC			-901
@@ -46,7 +46,7 @@ extern char    *__SIMSPIDER_VERSION ;
 
 struct SimSpiderEnv ;
 
-int InitSimSpiderEnv( struct SimSpiderEnv **ppenv );
+int InitSimSpiderEnv( struct SimSpiderEnv **ppenv , char *log_file_format , ... );
 void CleanSimSpiderEnv( struct SimSpiderEnv **ppenv );
 void ResetSimSpiderEnv( struct SimSpiderEnv *penv );
 
@@ -56,23 +56,26 @@ typedef int funcResponseBodyProc( char *url , char *data , long *p_data_len );
 typedef int funcParserHtmlNodeProc( int type , char *xpath , int xpath_len , int xpath_size , char *node , int node_len , char *properties , int properties_len , char *content , int content_len , void *p );
 typedef void funcTravelDoneQueueProc( char *key , void *value , long value_len , void *pv );
 
-void SetValidFileExtname( struct SimSpiderEnv *penv , char *valid_file_extname );
+void SetValidFileExtnameSet( struct SimSpiderEnv *penv , char *valid_file_extname_set );
 void AllowEmptyFileExtname( struct SimSpiderEnv *penv , int allow_empty_file_extname );
 void AllowRunOutofWebsite( struct SimSpiderEnv *penv , int allow_runoutof_website );
 void SetMaxRecursiveDepth( struct SimSpiderEnv *penv , long max_recursive_depth );
 void SetCertificateFilename( struct SimSpiderEnv *penv , char *cert_pathfilename_format , ... );
+void SetRequestDelay( struct SimSpiderEnv *penv , long seconds );
 
 void SetResponseHeaderProc( struct SimSpiderEnv *penv , funcResponseHeaderProc *pfuncResponseHeaderProc );
 void SetResponseBodyProc( struct SimSpiderEnv *penv , funcResponseHeaderProc *pfuncResponseBodyProc );
 void SetParserHtmlNodeProc( struct SimSpiderEnv *penv , funcParserHtmlNodeProc *pfuncParserHtmlNodeProc );
 void SetTravelDoneQueueProc( struct SimSpiderEnv *penv , funcTravelDoneQueueProc *pfuncTravelDoneQueueProc );
 
-void SetEntryUrls( struct SimSpiderEnv *penv , char **urls , char **custom_header , char **post_data );
-int SimSpiderGo( struct SimSpiderEnv *penv );
+int SimSpiderGo( struct SimSpiderEnv *penv , char **urls , char **custom_header , char **post_data );
 
-char *GetDoneQueueUnitUrl( void *pdqu );
-int GetDoneQueueUnitStatus( void *pdqu );
-long GetDoneQueueUnitRecursiveDepth( void *pdqu );
+void SetEnvCustomDataPtr( void *_penv , void *p );
+void *GetEnvCustomDataPtr( void *_penv );
+
+char *GetDoneQueueUnitUrl( void *_pdqu );
+int GetDoneQueueUnitStatus( void *_pdqu );
+long GetDoneQueueUnitRecursiveDepth( void *_pdqu );
 
 char *ConvertContentEncodingEx( char *encFrom , char *encTo , char *inptr , int *inptrlen , char *outptr , int *outptrlen );
 char *ConvertContentEncoding( char *encFrom , char *encTo , char *inptr );

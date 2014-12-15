@@ -24,19 +24,17 @@ struct StringBuffer
 
 struct SimSpiderEnv
 {
-	char			url[ 4096 + 1 ] ;
+	char			url[ SIMSPIDER_MAXLEN_URL + 1 ] ;
 	
 	struct StringBuffer	header ;
 	struct StringBuffer	body ;
 	
-	char			**entry_urls ;
-	char			**custom_header ;
-	char			**post_data ;
-	char			valid_file_extname[ 4096 + 1 ] ;
+	char			valid_file_extname_set[ SIMSPIDER_VALID_FILE_EXTNAME_SET + 1 ] ;
 	int			allow_empty_file_extname ;
-	char			cert_pathfilename[ MAXLEN_FILENAME + 1 ] ;
+	char			cert_pathfilename[ SIMSPIDER_MAXLEN_FILENAME + 1 ] ;
 	int			allow_runoutof_website ;
 	long			max_recursive_depth ;
+	long			request_delay ;
 	funcResponseHeaderProc	*pfuncResponseHeaderProc ;
 	funcResponseBodyProc	*pfuncResponseBodyProc ;
 	funcParserHtmlNodeProc	*pfuncParserHtmlNodeProc ;
@@ -46,32 +44,107 @@ struct SimSpiderEnv
 	struct HashContainer	done_queue ;
 	
 	struct DoneQueueUnit	*pdqu ;
+	
+	void			*p ;
 } ;
 
 struct DoneQueueUnit
 {
-	char			url[ 4096 + 1 ] ;
-	char			custom_header[ 4096 + 1 ] ;
-	char			post_data[ 4096 + 1 ] ;
+	char			*url ;
+	char			*custom_header ;
+	char			*post_data ;
 	int			status ;
 	long			recursive_depth ;
 } ;
 
-char *GetDoneQueueUnitUrl( void *pv )
+static BOOL FreeDoneQueueUnit( void *pv )
 {
 	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)pv ;
+	
+	if( pdqu )
+	{
+		if( pdqu->url )
+			free( pdqu->url );
+		if( pdqu->custom_header )
+			free( pdqu->custom_header );
+		if( pdqu->post_data )
+			free( pdqu->post_data );
+		free( pdqu );
+	}
+	
+	return TRUE;
+}
+
+static struct DoneQueueUnit *AllocDoneQueueUnit( char *url , char *custom_header , char *post_data , int status , long recursive_depth )
+{
+	struct DoneQueueUnit	*pdqu = NULL ;
+	
+	pdqu = (struct DoneQueueUnit *)malloc( sizeof(struct DoneQueueUnit) ) ;
+	if( pdqu == NULL )
+		return NULL;
+	memset( pdqu , 0x00 , sizeof(struct DoneQueueUnit) );
+	
+	pdqu->url = strdup( url ) ;
+	if( pdqu->url == NULL )
+	{
+		FreeDoneQueueUnit( pdqu );
+		return NULL;
+	}
+	
+	if( custom_header )
+	{
+		pdqu->custom_header = strdup( custom_header ) ;
+		if( pdqu->custom_header == NULL )
+		{
+			FreeDoneQueueUnit( pdqu );
+			return NULL;
+		}
+	}
+	
+	if( post_data )
+	{
+		pdqu->post_data = strdup( post_data ) ;
+		if( pdqu->post_data == NULL )
+		{
+			FreeDoneQueueUnit( pdqu );
+			return NULL;
+		}
+	}
+	
+	pdqu->status = status ;
+	pdqu->recursive_depth = recursive_depth ;
+	
+	return pdqu;
+}
+
+void SetEnvCustomDataPtr( void *_penv , void *p )
+{
+	struct SimSpiderEnv	*penv = (struct SimSpiderEnv *)_penv ;
+	penv->p = p ;
+	return;
+}
+
+void *GetEnvCustomDataPtr( void *_penv )
+{
+	struct SimSpiderEnv	*penv = (struct SimSpiderEnv *)_penv ;
+	return penv->p;
+}
+
+char *GetDoneQueueUnitUrl( void *_pdqu )
+{
+	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)_pdqu ;
 	return pdqu->url;
 }
 
-int GetDoneQueueUnitStatus( void *pv )
+int GetDoneQueueUnitStatus( void *_pdqu )
 {
-	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)pv ;
+	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)_pdqu ;
 	return pdqu->status;
 }
 
-long GetDoneQueueUnitRecursiveDepth( void *pv )
+long GetDoneQueueUnitRecursiveDepth( void *_pdqu )
 {
-	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)pv ;
+	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)_pdqu ;
 	return pdqu->recursive_depth;
 }
 
@@ -154,11 +227,18 @@ static void FreeSimSpiderEnv( struct SimSpiderEnv *penv )
 	return;
 }
 
-int InitSimSpiderEnv( struct SimSpiderEnv **ppenv )
+int InitSimSpiderEnv( struct SimSpiderEnv **ppenv , char *log_file_format , ... )
 {
 	int		nret = 0 ;
 	
-	if( getenv("SIMSPIDER_LOGFILE") )
+	if( log_file_format )
+	{
+		va_list         valist ;
+		va_start( valist , log_file_format );
+		SetLogFileV( log_file_format , valist );
+		va_end( valist );
+	}
+	else if( getenv("SIMSPIDER_LOGFILE") )
 	{
 		SetLogFile( "%s" , getenv("SIMSPIDER_LOGFILE") );
 	}
@@ -208,7 +288,7 @@ int InitSimSpiderEnv( struct SimSpiderEnv **ppenv )
 		return SIMSPIDER_ERROR_LIB_HASHX;
 	}
 	
-	SetValidFileExtname( (*ppenv) , SIMSPIDER_DEFAULT_VALIDFILENAMEEXTENSION );
+	SetValidFileExtnameSet( (*ppenv) , SIMSPIDER_DEFAULT_VALIDFILENAMEEXTENSION );
 	AllowEmptyFileExtname( (*ppenv) , 0 );
 	AllowRunOutofWebsite( (*ppenv) , 0 );
 	
@@ -246,18 +326,10 @@ void ResetSimSpiderEnv( struct SimSpiderEnv *penv )
 	return;
 }
 
-void SetEntryUrls( struct SimSpiderEnv *penv , char **entry_urls , char **custom_header , char **post_data )
+void SetValidFileExtnameSet( struct SimSpiderEnv *penv , char *valid_file_extname_set )
 {
-	penv->entry_urls = entry_urls ;
-	penv->custom_header = custom_header ;
-	penv->post_data = post_data ;
-	return;
-}
-
-void SetValidFileExtname( struct SimSpiderEnv *penv , char *valid_file_extname )
-{
-	memset( penv->valid_file_extname , 0x00 , sizeof(penv->valid_file_extname) );
-	snprintf( penv->valid_file_extname , sizeof(penv->valid_file_extname)-1 , " %s " , valid_file_extname );
+	memset( penv->valid_file_extname_set , 0x00 , sizeof(penv->valid_file_extname_set) );
+	snprintf( penv->valid_file_extname_set , sizeof(penv->valid_file_extname_set)-1 , " %s " , valid_file_extname_set );
 	return;
 }
 
@@ -288,6 +360,12 @@ void SetCertificateFilename( struct SimSpiderEnv *penv , char *cert_pathfilename
 	vsnprintf( penv->cert_pathfilename , sizeof(penv->cert_pathfilename)-1 , cert_pathfilename_format , valist );
 	va_end( valist );
 	
+	return;
+}
+
+void SetRequestDelay( struct SimSpiderEnv *penv , long seconds )
+{
+	penv->request_delay = seconds ;
 	return;
 }
 
@@ -524,7 +602,7 @@ static int CheckFileExtname( struct SimSpiderEnv *penv , char *propvalue , int p
 	
 	memset( file_extname , 0x00 , sizeof(file_extname) );
 	snprintf( file_extname , sizeof(file_extname) , " %.*s " , end - begin , begin );
-	if( strstr( penv->valid_file_extname , file_extname ) )
+	if( strstr( penv->valid_file_extname_set , file_extname ) )
 		return 1;
 	
 	return 0;
@@ -535,19 +613,18 @@ int CallbackOnXmlProperty( char *xpath , int xpath_len , int xpath_size , char *
 {
 	struct SimSpiderEnv	*penv = (struct SimSpiderEnv *)p ;
 	
+	struct DoneQueueUnit	*pdqu = NULL ;
+	
 	int			nret = 0 ;
 	
-DebugLog( __FILE__ , __LINE__ , "DEBUG | prop[%.*s][%.*s" , propname_len , propname , propvalue_len , propvalue );
 	if( propname_len == 4 && STRNICMP( propname , == , "href" , propname_len ) )
 	{
 		if( penv->max_recursive_depth > 1 && penv->pdqu->recursive_depth >= penv->max_recursive_depth )
 			return 0;
 		
-DebugLog( __FILE__ , __LINE__ , "DEBUG |" );
 		if( ! CheckHttpProtocol( propvalue ) )
 			return 0;
 		
-DebugLog( __FILE__ , __LINE__ , "DEBUG |" );
 		if( CheckFileExtname( penv , propvalue , propvalue_len ) )
 		{
 			char		url[ 4096 + 1 ] ;
@@ -555,9 +632,7 @@ DebugLog( __FILE__ , __LINE__ , "DEBUG |" );
 			
 			memset( url , 0x00 , sizeof(url) );
 			strcpy( url , penv->url );
-DebugLog( __FILE__ , __LINE__ , "DEBUG |" );
 			nret = FormatNewUrl( penv , propvalue , propvalue_len , url ) ;
-DebugLog( __FILE__ , __LINE__ , "DEBUG | FormatNewUrl[%d]" , nret );
 			if( nret )
 				return 0;
 			url_len = strlen(url) ;
@@ -567,8 +642,6 @@ DebugLog( __FILE__ , __LINE__ , "DEBUG | FormatNewUrl[%d]" , nret );
 			nret = GetHashItemPtr( & (penv->done_queue) , url , NULL , NULL ) ;
 			if( nret == HASH_RETCODE_ERROR_KEY_NOT_EXIST )
 			{
-				struct DoneQueueUnit	dqu ;
-				
 				nret = AddQueueBlock( penv->request_queue , url , url_len + 1 , NULL ) ;
 				if( nret )
 				{
@@ -580,15 +653,17 @@ DebugLog( __FILE__ , __LINE__ , "DEBUG | FormatNewUrl[%d]" , nret );
 					DebugLog( __FILE__ , __LINE__ , "AddQueueBlock[%s] ok" , url );
 				}
 				
-				memset( & dqu , 0x00 , sizeof(struct DoneQueueUnit) );
-				strcpy( dqu.url , url );
-				dqu.status = 0 ;
-				dqu.recursive_depth = penv->pdqu->recursive_depth + 1 ;
+				pdqu = AllocDoneQueueUnit( url , NULL , NULL , 0 , penv->pdqu->recursive_depth + 1 ) ;
+				if( pdqu == NULL )
+				{
+					ErrorLog( __FILE__ , __LINE__ , "AllocDoneQueueUnit failed errno[%d]" , errno );
+					return SIMSPIDER_ERROR_ALLOC;
+				}
 				
-				nret = PutHashItem( & (penv->done_queue) , url , (void*) & dqu , sizeof(struct DoneQueueUnit) , NULL , HASH_PUTMODE_ADD | HASH_PUTMODE_DUPLICATE ) ;
+				nret = PutHashItem( & (penv->done_queue) , url , (void*) pdqu , sizeof(struct DoneQueueUnit) , & FreeDoneQueueUnit , HASH_PUTMODE_ADD ) ;
 				if( nret )
 				{
-					ErrorLog( __FILE__ , __LINE__ , "PutHashItem failed[%d]" , nret );
+					ErrorLog( __FILE__ , __LINE__ , "PutHashItem failed[%d] errno[%d]" , nret , errno );
 					return -1;
 				}
 			}
@@ -693,15 +768,11 @@ static size_t CurlResponseBodyProc( char *buffer , size_t size , size_t nmemb , 
 	return size*nmemb;
 }
 
-int SimSpiderGo( struct SimSpiderEnv *penv )
+int SimSpiderGo( struct SimSpiderEnv *penv , char **entry_urls , char **custom_header , char **post_data )
 {
-	char			**entry_url = NULL ;
-	char			**custom_header = NULL ;
-	char			**post_data = NULL ;
-	
 	struct QueueBlock	*pqb = NULL ;
 	int			len ;
-	struct DoneQueueUnit	dqu , *pdqu = NULL ;
+	struct DoneQueueUnit	*pdqu = NULL ;
 	
 	CURL			*curl = NULL ;
 	CURLcode		ret = CURLE_OK ;
@@ -715,33 +786,29 @@ int SimSpiderGo( struct SimSpiderEnv *penv )
 	if( penv == NULL )
 		return 0;
 	
-	for( entry_url = penv->entry_urls , post_data = penv->post_data , custom_header = penv->custom_header
-		; entry_url && *entry_url ; entry_url++ )
+	for( ; entry_urls && (*entry_urls) ; entry_urls++ )
 	{
-		nret = AddQueueBlock( penv->request_queue , *entry_url , strlen(*entry_url)+1 , NULL ) ;
+		nret = AddQueueBlock( penv->request_queue , *entry_urls , strlen(*entry_urls)+1 , NULL ) ;
 		if( nret )
 		{
-			ErrorLog( __FILE__ , __LINE__ , "AddQueueBlock[%s] failed[%d] errno[%d]" , *entry_url , nret , errno );
+			ErrorLog( __FILE__ , __LINE__ , "AddQueueBlock[%s] failed[%d] errno[%d]" , *entry_urls , nret , errno );
 			return SIMSPIDER_ERROR_ALLOC;
 		}
 		else
 		{
-			DebugLog( __FILE__ , __LINE__ , "AddQueueBlock[%s] ok" , *entry_url );
+			DebugLog( __FILE__ , __LINE__ , "AddQueueBlock[%s] ok" , *entry_urls );
 		}
 		
-		memset( & dqu , 0x00 , sizeof(struct DoneQueueUnit) );
-		strncpy( dqu.url , *entry_url , sizeof(dqu.url) - 1 );
-		if( custom_header )
-			strncpy( dqu.custom_header , *custom_header , sizeof(dqu.custom_header) - 1 );
-		if( post_data )
-			strncpy( dqu.post_data , *post_data , sizeof(dqu.post_data) - 1 );
-		dqu.status = 0 ;
-		dqu.recursive_depth = 1 ;
-		
-		nret = PutHashItem( & (penv->done_queue) , *entry_url , (void*) & dqu , sizeof(struct DoneQueueUnit) , NULL , HASH_PUTMODE_SET | HASH_PUTMODE_DUPLICATE ) ;
+		pdqu = AllocDoneQueueUnit( *entry_urls , custom_header?(*custom_header):NULL , post_data?(*post_data):NULL , 0 , 1 ) ;
+		if( pdqu == NULL )
+		{
+			ErrorLog( __FILE__ , __LINE__ , "AllocDoneQueueUnit failed errno[%d]" , errno );
+			return SIMSPIDER_ERROR_ALLOC;
+		}
+		nret = PutHashItem( & (penv->done_queue) , *entry_urls , (void*) pdqu , sizeof(struct DoneQueueUnit) , & FreeDoneQueueUnit , HASH_PUTMODE_SET ) ;
 		if( nret )
 		{
-			ErrorLog( __FILE__ , __LINE__ , "PutHashItem2 failed[%d]" , nret );
+			ErrorLog( __FILE__ , __LINE__ , "PutHashItem failed[%d]" , nret );
 			return SIMSPIDER_ERROR_ALLOC;
 		}
 		
@@ -819,20 +886,26 @@ int SimSpiderGo( struct SimSpiderEnv *penv )
 			curl_easy_setopt( curl , CURLOPT_SSL_VERIFYHOST , 1L );
 		}
 		
-		if( pdqu->custom_header[0] )
+		if( pdqu->custom_header )
 		{
-			char		custom_header[ 4096 + 1 ] ;
+			char		*custom_header = NULL ;
 			char		*p = NULL ;
 			
 			DebugLog( __FILE__ , __LINE__ , "HTTPREQHEADER [%s]" , pdqu->custom_header );
 			
-			strcpy( custom_header , pdqu->custom_header );
-			p = strtok( custom_header , "|" ) ;
+			custom_header = strdup( pdqu->custom_header ) ;
+			if( custom_header == NULL )
+			{
+				ErrorLog( __FILE__ , __LINE__ , "strdup failed errno[%d]" , errno );
+				return SIMSPIDER_ERROR_ALLOC;
+			}
+			
+			p = strtok( custom_header , "\n" ) ;
 			while( p )
 			{
 				chunk = curl_slist_append( chunk , p ) ;
 				
-				p = strtok( NULL , "|" ) ;
+				p = strtok( NULL , "\n" ) ;
 			}
 			
 			ret = curl_easy_setopt( curl , CURLOPT_HTTPHEADER , chunk ) ;
@@ -844,7 +917,7 @@ int SimSpiderGo( struct SimSpiderEnv *penv )
 			}
 		}
 		
-		if( pdqu->post_data[0] )
+		if( pdqu->post_data )
 		{
 			curl_easy_setopt( curl , CURLOPT_POSTFIELDS , pdqu->post_data );
 		}
@@ -920,9 +993,14 @@ _GOTO_CONTINUE :
 		
 		curl_easy_cleanup( curl );
 		
-		if( pdqu->custom_header[0] )
+		if( pdqu->custom_header )
 		{
 			curl_slist_free_all( chunk );
+		}
+		
+		if( penv->request_delay > 0 )
+		{
+			sleep( penv->request_delay );
 		}
 	}
 	

@@ -34,22 +34,21 @@ int www_oschina_net()
 	
 	int			nret = 0 ;
 	
-	nret = InitSimSpiderEnv( & penv ) ;
+	nret = InitSimSpiderEnv( & penv , "www.oschina.net.log" ) ;
 	if( nret )
 	{
 		printf( "InitSimSpiderEnv failed[%d]\n" , nret );
 		return 1;
 	}
 	
-	SetEntryUrls( penv , entry_urls , NULL , NULL );
-	SetValidFileExtname( penv , "html php jsp asp cgi fcgi" );
+	SetValidFileExtnameSet( penv , "html php jsp asp cgi fcgi" );
 	AllowEmptyFileExtname( penv , 1 );
 	SetMaxRecursiveDepth( penv , 2 );
 	
 	SetResponseBodyProc( penv , & ResponseBodyProc );
 	SetTravelDoneQueueProc( penv , & TravelDoneQueueProc );
 	
-	nret = SimSpiderGo( penv );
+	nret = SimSpiderGo( penv , entry_urls , NULL , NULL );
 	
 	CleanSimSpiderEnv( & penv );
 	
