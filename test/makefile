@@ -8,10 +8,10 @@
 ###### 源文件配置区
 #@ c_FILE
 c_FILE		=	\
-			www.oschina.net.c \
+			www_oschina_net.c \
 
 ###### 目标文件、安装目录配置区
-BIN		=	www.oschina.net
+BIN		=	www_oschina_net
 
 ###### 编译选项
 CFLAGS		=	-I. \
@@ -35,6 +35,6 @@ CLEAN_ADDITION	=
 include $(MKTPLDIR)/makeobj_$(MKTPLOS).inc
 
 ###### 目标文件依赖关系
-www.oschina.net		:	www.oschina.net.o
-	$(CC) -o $@ www.oschina.net.o $(LFLAGS)
+www_oschina_net		:	www_oschina_net.o
+	$(CC) -o $@ www_oschina_net.o $(LFLAGS)
 

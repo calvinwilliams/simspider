@@ -29,10 +29,10 @@ c_FILE_CLEAN	=	$(c_FILE_o) $(c_FILE2_o) $(c_FILE3_o) $(c_FILE4_o) $(c_FILE5_o)
 	$(CC) $(CFLAGS) -c $<
 
 c_FILE		=	\
-			www.oschina.net.c \
+			www_oschina_net.c \
 
 ###### 目标文件、安装目录配置区
-BIN		=	www.oschina.net
+BIN		=	www_oschina_net
 
 ###### 编译选项
 CFLAGS		=	-I. \
@@ -101,6 +101,6 @@ install		:	all
 
 
 ###### 目标文件依赖关系
-www.oschina.net		:	www.oschina.net.o
-	$(CC) -o $@ www.oschina.net.o $(LFLAGS)
+www_oschina_net		:	www_oschina_net.o
+	$(CC) -o $@ www_oschina_net.o $(LFLAGS)
 

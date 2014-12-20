@@ -13,6 +13,7 @@ c_FILE		=	\
 			HashX.c \
 			LOGC.c \
 			encoding.c \
+			util.c \
 
 c_FILE2		=	\
 			simspider.c \
