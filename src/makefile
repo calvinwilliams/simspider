@@ -29,12 +29,14 @@ HDERINST	=	$(HOME)/exinc/simspider
 ###### 编译选项
 CFLAGS		=	-I. \
 			-I$(HOME)/exinc/fasterxml \
+			-I$(HOME)/exinc/fasterjson \
 			-I/usr/include \
 
 ###### 链接选项
 LFLAGS		=	-L. \
 			-L$(HOME)/exlib \
 			-lfasterxml \
+			-lfasterjson \
 			-L/usr/lib \
 			-lcurl \
 
