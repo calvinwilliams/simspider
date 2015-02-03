@@ -1,3 +1,11 @@
+/*
+ * simspider - Simple Net Spider
+ * author	: calvin
+ * email	: calvinwilliams.c@gmail.com
+ *
+ * Licensed under the LGPL v2.1, see the file LICENSE in base directory.
+ */
+
 #ifndef _H_LIBSIMSPIDER_
 #define _H_LIBSIMSPIDER_
 
@@ -36,19 +44,21 @@ extern "C" {
 extern char    *__SIMSPIDER_VERSION ;
 
 #define SIMSPIDER_MAXLEN_FILENAME		256
-#define SIMSPIDER_MAXLEN_URL			2048
-#define SIMSPIDER_VALID_FILE_EXTNAME_SET	1024
+#define SIMSPIDER_MAXLEN_URL			1024
+#define SIMSPIDER_VALID_FILE_EXTNAME_SET	256
 
 #define SIMSPIDER_INFO_OK			0
-#define SIMSPIDER_ERROR_ALLOC			-901
-#define SIMSPIDER_ERROR_INTERNAL		-903
+#define SIMSPIDER_ERROR_ALLOC			-101
+#define SIMSPIDER_ERROR_INTERNAL		-102
 #define SIMSPIDER_ERROR_URL_TOOLONG		-103
+#define SIMSPIDER_ERROR_SELECT			-104
+#define SIMSPIDER_ERROR_LIB_MEMQUEUE		-301
+#define SIMSPIDER_ERROR_LIB_HASHX		-302
+#define SIMSPIDER_ERROR_LIB_CURL		-303
+#define SIMSPIDER_ERROR_LIB_LOGC		-304
 #define SIMSPIDER_ERROR_FUNCPROC		-905
 #define SIMSPIDER_ERROR_PARSEHTML		-907
 #define SIMSPIDER_ERROR_PARSEJSON		-908
-#define SIMSPIDER_ERROR_LIB_LOGC		-701
-#define SIMSPIDER_ERROR_LIB_MEMQUEUE		-702
-#define SIMSPIDER_ERROR_LIB_HASHX		-703
 
 #define SIMSPIDER_INFO_THEN_DO_IT_FOR_DEFAULT	902
 
@@ -66,18 +76,16 @@ int InitSimSpiderEnv( struct SimSpiderEnv **ppenv , char *log_file_format , ... 
 void CleanSimSpiderEnv( struct SimSpiderEnv **ppenv );
 void ResetSimSpiderEnv( struct SimSpiderEnv *penv );
 
-typedef size_t funcCurlResponseHeaderProc( char *buffer , size_t size , size_t nmemb , void *p );
-typedef size_t funcCurlResponseBodyProc( char *buffer , size_t size , size_t nmemb , void *p );
-
-#define SIMSPIDER_DEFAULT_VALIDFILENAMEEXTENSION	"htm html"
+#define SIMSPIDER_DEFAULT_VALIDFILENAMEEXTENSION	"htm html shtml cgi fcgi asp aspx php jsp do action"
 #define SIMSPIDER_NO_PASREHTML				0x01
 #define SIMSPIDER_PARSER_HTML				0
 #define SIMSPIDER_PARSER_JSON				1
+#define SIMSPIDER_PARSER_FASTHTML			3
 
-typedef int funcRequestHeaderProc( struct SimSpiderEnv *penv );
-typedef int funcRequestBodyProc( struct SimSpiderEnv *penv );
-typedef int funcResponseHeaderProc( struct SimSpiderEnv *penv );
-typedef int funcResponseBodyProc( struct SimSpiderEnv *penv );
+typedef int funcRequestHeaderProc( struct DoneQueueUnit *pdqu );
+typedef int funcRequestBodyProc( struct DoneQueueUnit *pdqu );
+typedef int funcResponseHeaderProc( struct DoneQueueUnit *pdqu );
+typedef int funcResponseBodyProc( struct DoneQueueUnit *pdqu );
 typedef int funcParseHtmlNodeProc( int type , char *xpath , int xpath_len , int xpath_size , char *node , int node_len , char *properties , int properties_len , char *content , int content_len , void *p );
 typedef int funcParseJsonNodeProc( int type , char *jpath , int jpath_len , int jpath_size , char *node , int node_len , char *content , int content_len , void *p );
 typedef void funcTravelDoneQueueProc( char *key , void *value , long value_len , void *pv );
@@ -86,9 +94,9 @@ void SetValidFileExtnameSet( struct SimSpiderEnv *penv , char *valid_file_extnam
 void AllowEmptyFileExtname( struct SimSpiderEnv *penv , int allow_empty_file_extname );
 void AllowRunOutofWebsite( struct SimSpiderEnv *penv , int allow_runoutof_website );
 void SetMaxRecursiveDepth( struct SimSpiderEnv *penv , long max_recursive_depth );
-void SetDepthLimit( struct SimSpiderEnv *penv , long depth_limit );
 void SetCertificateFilename( struct SimSpiderEnv *penv , char *cert_pathfilename_format , ... );
 void SetRequestDelay( struct SimSpiderEnv *penv , long seconds );
+void SetMaxConcurrentCount( struct SimSpiderEnv *penv , long max_concurrent_count );
 void SetResponseBodyParser( struct SimSpiderEnv *penv , int parser );
 
 void SetRequestHeaderProc( struct SimSpiderEnv *penv , funcRequestHeaderProc *pfuncRequestHeaderProc );
@@ -99,25 +107,27 @@ void SetParseHtmlNodeProc( struct SimSpiderEnv *penv , funcParseHtmlNodeProc *pf
 void SetParseJsonNodeProc( struct SimSpiderEnv *penv , funcParseJsonNodeProc *pfuncParseJsonNodeProc );
 void SetTravelDoneQueueProc( struct SimSpiderEnv *penv , funcTravelDoneQueueProc *pfuncTravelDoneQueueProc );
 
-int SimSpiderGo( struct SimSpiderEnv *penv , char **urls , char **custom_header , char **post_data );
+int SimSpiderGo( struct SimSpiderEnv *penv , char **urls );
 
-char *GetSimSpiderEnvUrl( struct SimSpiderEnv *penv );
-CURL *GetSimSpiderEnvCurl( struct SimSpiderEnv *penv );
-struct SimSpiderBuf *GetSimSpiderEnvHeaderBuffer( struct SimSpiderEnv *penv );
-struct SimSpiderBuf *GetSimSpiderEnvBodyBuffer( struct SimSpiderEnv *penv );
-void SetSimSpiderEnvCustomDataPtr( struct SimSpiderEnv *penv , void *p );
-void *GetSimSpiderEnvCustomDataPtr( struct SimSpiderEnv *penv );
-struct DoneQueueUnit *GetSimSpiderEnvDoneQueueUnit( struct SimSpiderEnv *penv );
+char *GetSimSpiderEnvUrl( struct DoneQueueUnit *pdqu );
+CURL *GetSimSpiderEnvCurl( struct DoneQueueUnit *pdqu );
+struct SimSpiderBuf *GetSimSpiderEnvHeaderBuffer( struct DoneQueueUnit *pdqu );
+struct SimSpiderBuf *GetSimSpiderEnvBodyBuffer( struct DoneQueueUnit *pdqu );
 
+char *GetDoneQueueUnitRefererUrl( struct DoneQueueUnit *pdqu );
 char *GetDoneQueueUnitUrl( struct DoneQueueUnit *pdqu );
 int GetDoneQueueUnitStatus( struct DoneQueueUnit *pdqu );
 long GetDoneQueueUnitRecursiveDepth( struct DoneQueueUnit *pdqu );
 
-int AppendRequestInfo( struct SimSpiderEnv *penv , char *url , int url_len , char *custom_header , char *post_data , long depth );
+int AppendRequestInfo( struct SimSpiderEnv *penv , char *referer_url , char *url , int url_len , long depth );
 
-int ReallocHeaderBuffer( struct SimSpiderEnv *penv , size_t new_bufsize );
-int ReallocBodyBuffer( struct SimSpiderEnv *penv , size_t new_bufsize );
-int CleanSimSpiderBuffer( struct SimSpiderEnv *penv );
+int ReallocHeaderBuffer( struct DoneQueueUnit *pdqu , size_t new_bufsize );
+int ReallocBodyBuffer( struct DoneQueueUnit *pdqu , size_t new_bufsize );
+int CleanSimSpiderBuffer( struct DoneQueueUnit *pdqu );
+
+void FreeCurlList1Later( struct DoneQueueUnit *pdqu , struct curl_slist *curllist1 );
+void FreeCurlList2Later( struct DoneQueueUnit *pdqu , struct curl_slist *curllist2 );
+void FreeCurlList3Later( struct DoneQueueUnit *pdqu , struct curl_slist *curllist3 );
 
 /********* util *********/
 
@@ -138,6 +148,7 @@ float nstof( char *base , long len );
 double nstolf( char *base , long len );
 
 void EraseGB18030( char *str );
+int ConvertBodyEncodingEx( struct DoneQueueUnit *pdqu , char *from_encoding , char *to_encoding );
 
 long _GetFileSize(char *filename);
 int ReadEntireFile( char *filename , char *mode , char *buf , long *bufsize );

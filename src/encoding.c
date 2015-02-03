@@ -10,6 +10,7 @@ char *ConvertContentEncodingEx( char *encFrom , char *encTo , char *inptr , int 
 {
 	iconv_t		ic ;
 	
+	size_t		inlen_bak = 0 ;
 	int		ori_outptrlen = 0 ;
 	
 	static char	outbuf[ MAXLEN_XMLCONTENT + 1 ]; /* 如果用户没有分配内存，则使用静态缓冲区 */
@@ -34,12 +35,13 @@ char *ConvertContentEncodingEx( char *encFrom , char *encTo , char *inptr , int 
 	pin = inptr ;
 	if( inptrlen )
 	{
-		inlen = (*inptrlen) ;
+		inlen = (*inptrlen) + 1 ;
 	}
 	else
 	{
 		inlen = strlen((char*)inptr) + 1 ;
 	}
+	inlen_bak = inlen ;
 	if( outptr )
 	{
 		memset( outptr , 0x00 , (*outptrlen) );
@@ -65,8 +67,8 @@ char *ConvertContentEncodingEx( char *encFrom , char *encTo , char *inptr , int 
 	/* 编码转换 */
 	nret = iconv( ic , (char **) & pin , & inlen , (char **) & pout , poutlen );
 	iconv_close( ic ); /* 关闭iconv_t对象 */
-	if( nret == -1)
-		 return NULL;
+	if( nret == -1 || inlen > 0 )
+		return NULL;
 	
 	/* 返回 */
 	if( outptr )

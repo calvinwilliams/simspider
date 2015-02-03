@@ -145,6 +145,54 @@ void EraseGB18030( char *str )
 	return;
 }
 
+int ConvertBodyEncodingEx( struct DoneQueueUnit *pdqu , char *from_encoding , char *to_encoding )
+{
+	struct SimSpiderBuf	*buf = NULL ;
+	char			*inptr = NULL ;
+	int			inlen ;
+	char			*outptr = NULL ;
+	int			outlen ;
+	
+	int			nret = 0 ;
+	
+	buf = GetSimSpiderEnvBodyBuffer( pdqu ) ;
+	
+	inlen = buf->len ;
+	inptr = buf->base ;
+	outlen = inlen * 2 ;
+	outptr = (char*)malloc( outlen + 1 ) ;
+	if( outptr == NULL )
+	{
+		return -1;
+	}
+	memset( outptr , 0x00 , outlen + 1 );
+	
+	if( ConvertContentEncodingEx( "UTF-8" , "GB18030" , inptr , & inlen , outptr , & outlen ) == NULL )
+	{
+		free( outptr );
+		return -2;
+	}
+	
+	if( outlen > inlen )
+	{
+		nret = ReallocBodyBuffer( pdqu , outlen + 1 ) ;
+		if( nret )
+		{
+			free( outptr );
+			return -3;
+		}
+		
+		buf = GetSimSpiderEnvBodyBuffer( pdqu ) ;
+	}
+	
+	strcpy( buf->base , outptr );
+	buf->len = outlen ;
+	
+	free( outptr );
+	
+	return 0;
+}
+
 long _GetFileSize(char *filename)
 {
 	struct stat stat_buf;

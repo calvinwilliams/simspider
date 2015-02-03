@@ -30,6 +30,7 @@ HDERINST	=	$(HOME)/exinc/simspider
 CFLAGS		=	-I. \
 			-I$(HOME)/exinc/fasterxml \
 			-I$(HOME)/exinc/fasterjson \
+			-I$(HOME)/include \
 			-I/usr/include \
 
 ###### 链接选项
@@ -37,11 +38,12 @@ LFLAGS		=	-L. \
 			-L$(HOME)/exlib \
 			-lfasterxml \
 			-lfasterjson \
+			-L$(HOME)/lib \
 			-L/usr/lib \
 			-lcurl \
 
 ###### 额外宏定义区
-CLEAN_ADDITION	=
+CLEAN_ADDITION	=	simspider.log
 
 ###### 加载mktpl模板库
 #@ make_all
