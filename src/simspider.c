@@ -22,7 +22,7 @@ int RequestHeaderProc( struct DoneQueueUnit *pdqu )
 	if( GetDoneQueueUnitRefererUrl(pdqu) )
 	{
 		memset( buffer , 0x00 , sizeof(buffer) );
-		snprintf( buffer , sizeof(buffer) , "Referer: %s" , GetDoneQueueUnitRefererUrl(pdqu) );
+		SNPRINTF( buffer , sizeof(buffer) , "Referer: %s" , GetDoneQueueUnitRefererUrl(pdqu) );
 		header_list = curl_slist_append( header_list , buffer ) ;
 	}
 	

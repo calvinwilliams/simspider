@@ -358,7 +358,7 @@ struct MDHashNode *GetMDHashRootNode( struct MDHashTree *pmdht )
 static int QueryHashUnitPtr( struct HashArray *pha , char *key , struct HashUnit **pp_unit , void **pp_value , long *p_value_len )
 {
 	unsigned long	index ;
-	long		l ;
+	unsigned long	l ;
 	
 	if( pha == NULL )
 		return HASH_RETCODE_ERROR_PARAMETER;
@@ -562,7 +562,7 @@ int CleanHashArray( struct HashArray *pha )
 int PutHashUnit( struct HashArray *pha , char *key , void *value , long value_len , BOOL (*pfuncFreeHashUnitProc)(void *pv) , int mode )
 {
 	unsigned long	index ;
-	long		l ;
+	unsigned long	l ;
 	int		nret = 0 ;
 	
 	if( pha == NULL )

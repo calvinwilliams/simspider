@@ -1,3 +1,7 @@
+ver 2.0.1	2015-02-04	calvin
+		* Fixed a bug
+		* WINDOWS Supported
+
 ver 2.0.0	2015-02-01	calvin
 		* support concurrents in single process
 

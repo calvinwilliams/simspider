@@ -21,8 +21,8 @@
 #include "LOGC.h"
 #include "libsimspider.h"
 
-char	__SIMSPIDER_VERSION_1_0_0[] = "2.0.0" ;
-char	*__SIMSPIDER_VERSION = __SIMSPIDER_VERSION_1_0_0 ;
+char	__SIMSPIDER_VERSION_2_0_1[] = "2.0.1" ;
+char	*__SIMSPIDER_VERSION = __SIMSPIDER_VERSION_2_0_1 ;
 
 struct SimSpiderEnv
 {
@@ -193,7 +193,7 @@ static struct SimSpiderEnv *AllocSimSpiderEnv()
 	return penv;
 }
 
-int ReallocHeaderBuffer( struct DoneQueueUnit *pdqu , size_t new_bufsize )
+int ReallocHeaderBuffer( struct DoneQueueUnit *pdqu , long new_bufsize )
 {
 	char	*new_base = NULL ;
 	
@@ -211,7 +211,7 @@ int ReallocHeaderBuffer( struct DoneQueueUnit *pdqu , size_t new_bufsize )
 	return 0;
 }
 
-int ReallocBodyBuffer( struct DoneQueueUnit *pdqu , size_t new_bufsize )
+int ReallocBodyBuffer( struct DoneQueueUnit *pdqu , long new_bufsize )
 {
 	char	*new_base = NULL ;
 	
@@ -368,7 +368,7 @@ void ResetSimSpiderEnv( struct SimSpiderEnv *penv )
 void SetValidFileExtnameSet( struct SimSpiderEnv *penv , char *valid_file_extname_set )
 {
 	memset( penv->valid_file_extname_set , 0x00 , sizeof(penv->valid_file_extname_set) );
-	snprintf( penv->valid_file_extname_set , sizeof(penv->valid_file_extname_set)-1 , " %s " , valid_file_extname_set );
+	SNPRINTF( penv->valid_file_extname_set , sizeof(penv->valid_file_extname_set)-1 , " %s " , valid_file_extname_set );
 	return;
 }
 
@@ -396,7 +396,7 @@ void SetCertificateFilename( struct SimSpiderEnv *penv , char *cert_pathfilename
 	
 	va_start( valist , cert_pathfilename_format );
 	memset( penv->cert_pathfilename , 0x00 , sizeof(penv->cert_pathfilename) );
-	vsnprintf( penv->cert_pathfilename , sizeof(penv->cert_pathfilename)-1 , cert_pathfilename_format , valist );
+	VSNPRINTF( penv->cert_pathfilename , sizeof(penv->cert_pathfilename)-1 , cert_pathfilename_format , valist );
 	va_end( valist );
 	
 	return;
@@ -547,6 +547,39 @@ static char *strnstr( char *str , int str_len , char *find )
 	return NULL;
 }
 
+#if ( defined _WIN32 )
+int my_strncmp(const char* dst,const char* src,int len)
+{
+    int ch1,ch2;
+    len--;
+    do
+    {
+      if ( ((ch1 = (unsigned char)(*(dst++))) >= 'A') &&(ch1 <= 'Z') )
+        ch1 += 0x20;
+    //printf("ch1=%c\n",ch1);
+      if ( ((ch2 = (unsigned char)(*(src++))) >= 'A') &&(ch2 <= 'Z') )
+        ch2 += 0x20;
+    //printf("ch2=%c\n",ch2);
+    }while(ch1&&ch2&&(ch1 == ch2)&&len--);
+   return(ch1 - ch2);
+}
+char* strcasestr(const char* s1, const char* s2)
+{
+    int len2 = strlen(s2); /* 获得待查找串的长度*/
+    int tries; /* maximum number of comparisons */
+    int nomatch = 1; /* set to 0 if match is found */
+   
+    tries = strlen(s1) + 1 - len2; /*此处说明最多只用比较这么多次，*/
+    if (tries > 0)
+        while (( nomatch = my_strncmp(s1, s2, len2)) && tries--)
+            s1++;
+    if (nomatch)
+        return NULL;
+    else
+        return (char *) s1; /* cast const away */
+}
+#endif
+
 static int FormatNewUrl( struct SimSpiderEnv *penv , char *propvalue , int propvalue_len , char *url )
 {
 	int		url_len ;
@@ -593,7 +626,7 @@ static int FormatNewUrl( struct SimSpiderEnv *penv , char *propvalue , int propv
 			return 1;
 		if( ptr-url+propvalue_len > SIMSPIDER_MAXLEN_URL )
 			return -103;
-		snprintf( ptr+1 , sizeof(url)-(ptr-url) , "%.*s" , propvalue_len , propvalue );
+		SNPRINTF( ptr+1 , SIMSPIDER_MAXLEN_URL-(ptr-url) , "%.*s" , propvalue_len , propvalue );
 	}
 	else
 	{
@@ -614,7 +647,7 @@ static int FormatNewUrl( struct SimSpiderEnv *penv , char *propvalue , int propv
 		}
 		else if( (*ptr) == '/' )
 		{
-			snprintf( url + url_len , sizeof(url) - url_len - 1 , "%.*s" , propvalue_len , propvalue );
+			SNPRINTF( url + url_len , SIMSPIDER_MAXLEN_URL - url_len - 1 , "%.*s" , propvalue_len , propvalue );
 		}
 		else
 		{
@@ -623,7 +656,7 @@ static int FormatNewUrl( struct SimSpiderEnv *penv , char *propvalue , int propv
 			{
 				if( url_len+propvalue_len > SIMSPIDER_MAXLEN_URL )
 					return -103;
-				snprintf( url + url_len , sizeof(url) - url_len - 1 , "/%.*s" , propvalue_len , propvalue );
+				SNPRINTF( url + url_len , SIMSPIDER_MAXLEN_URL - url_len - 1 , "/%.*s" , propvalue_len , propvalue );
 			}
 			else
 			{
@@ -632,7 +665,7 @@ static int FormatNewUrl( struct SimSpiderEnv *penv , char *propvalue , int propv
 					return 1;
 				if( ptr-url+propvalue_len > SIMSPIDER_MAXLEN_URL )
 					return -103;
-				snprintf( ptr+1 , sizeof(url)-(ptr-url) , "%.*s" , propvalue_len , propvalue );
+				SNPRINTF( ptr+1 , SIMSPIDER_MAXLEN_URL-(ptr-url) , "%.*s" , propvalue_len , propvalue );
 			}
 		}
 	}
@@ -773,7 +806,7 @@ static int CheckFileExtname( struct SimSpiderEnv *penv , char *propvalue , int p
 	}
 	
 	memset( file_extname , 0x00 , sizeof(file_extname) );
-	snprintf( file_extname , sizeof(file_extname) , " %.*s " , (int)(end-begin) , begin );
+	SNPRINTF( file_extname , sizeof(file_extname) , " %.*s " , (int)(end-begin) , begin );
 	if( strstr( penv->valid_file_extname_set , file_extname ) )
 		return 1;
 	
@@ -1078,7 +1111,7 @@ size_t CurlResponseHeaderProc( char *buffer , size_t size , size_t nmemb , void 
 	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)p ;
 	int			nret = 0 ;
 	
-	if( size*nmemb > pdqu->header.bufsize-1 - pdqu->header.len )
+	if( (long)(size*nmemb) > pdqu->header.bufsize-1 - pdqu->header.len )
 	{
 		nret = ReallocHeaderBuffer( pdqu , pdqu->header.len + size*nmemb + 1 ) ;
 		if( nret )
@@ -1097,7 +1130,7 @@ size_t CurlResponseBodyProc( char *buffer , size_t size , size_t nmemb , void *p
 	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)p ;
 	int			nret = 0 ;
 	
-	if( size*nmemb > pdqu->body.bufsize-1 - pdqu->body.len )
+	if( (long)(size*nmemb) > pdqu->body.bufsize-1 - pdqu->body.len )
 	{
 		nret = ReallocBodyBuffer( pdqu , pdqu->body.len + size*nmemb + 1 ) ;
 		if( nret )
@@ -1317,13 +1350,21 @@ static int RemoveTaskFromRequestQueue( struct DoneQueueUnit *pdqu )
 	
 	if( pdqu->penv->request_delay > 0 )
 	{
+#if ( defined _WIN32 )
+		Sleep( pdqu->penv->request_delay * 1000 );
+#elif ( defined __unix ) || ( defined _AIX ) || ( defined __linux__ ) || ( defined __hpux )
 		sleep( pdqu->penv->request_delay );
+#endif
 	}
 	else if( pdqu->penv->request_delay < 0 )
 	{
 		unsigned int	seconds ;
 		seconds = ( rand() % (-pdqu->penv->request_delay) ) + 1 ;
+#if ( defined _WIN32 )
+		Sleep( seconds * 1000 );
+#elif ( defined __unix ) || ( defined _AIX ) || ( defined __linux__ ) || ( defined __hpux )
 		sleep( seconds );
+#endif
 	}
 	
 	return 0;
@@ -1347,9 +1388,9 @@ int SimSpiderGo( struct SimSpiderEnv *penv , char **entry_urls )
 	for( ; entry_urls && (*entry_urls) ; entry_urls++ )
 	{
 		if( STRNICMP( *entry_urls , != , "http:" , 4 ) )
-			snprintf( url , sizeof(url) , "http://%s" , *entry_urls );
+			SNPRINTF( url , sizeof(url) , "http://%s" , *entry_urls );
 		else
-			snprintf( url , sizeof(url) , "%s" , *entry_urls );
+			SNPRINTF( url , sizeof(url) , "%s" , *entry_urls );
 		
 		url_len = strlen( url ) ;
 		if( url[url_len-1] != '/' )
@@ -1393,7 +1434,11 @@ int SimSpiderGo( struct SimSpiderEnv *penv , char **entry_urls )
 				timeout = 100 ;
 			if( max_fd == -1 )
 			{
+#if ( defined _WIN32 )
+				Sleep( timeout );
+#elif ( defined __unix ) || ( defined _AIX ) || ( defined __linux__ ) || ( defined __hpux )
 				sleep( timeout / 1000 );
+#endif
 			}
 			else
 			{
