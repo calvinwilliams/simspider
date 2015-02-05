@@ -1,3 +1,6 @@
+ver 2.1.1	2015-02-05	calvin
+		* 剥离对第三方函数库fasterxml,fasterjson的依赖性
+
 ver 2.0.1	2015-02-04	calvin
 		* 修正了一个代码问题，会导致无法拼接下层URL
 		* 移植到WINDOWS上

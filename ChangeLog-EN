@@ -1,3 +1,6 @@
+ver 2.1.1	2015-02-05	calvin
+		* Stripping of third-party libraries fasterxml,fasterjson dependencies 
+		
 ver 2.0.1	2015-02-04	calvin
 		* Fixed a bug
 		* WINDOWS Supported

@@ -61,7 +61,6 @@ int simspider( char *url , long max_concurrent_count )
 	SetMaxConcurrentCount( penv , max_concurrent_count );
 	
 	AllowEmptyFileExtname( penv , 1 );
-	SetResponseBodyParser( penv , SIMSPIDER_PARSER_FASTHTML );
 	SetRequestHeaderProc( penv , & RequestHeaderProc );
 	
 	SetTravelDoneQueueProc( penv , & TravelDoneQueueProc );

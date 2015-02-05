@@ -13,16 +13,13 @@
 
 #include "libsimspider.h"
 
-#include "fasterxml.h"
-#include "fasterjson.h"
-
 #include "memque.h"
 #include "HashX.h"
 #include "LOGC.h"
 #include "libsimspider.h"
 
-char	__SIMSPIDER_VERSION_2_0_1[] = "2.0.1" ;
-char	*__SIMSPIDER_VERSION = __SIMSPIDER_VERSION_2_0_1 ;
+char	__SIMSPIDER_VERSION_2_1_1[] = "2.1.1" ;
+char	*__SIMSPIDER_VERSION = __SIMSPIDER_VERSION_2_1_1 ;
 
 struct SimSpiderEnv
 {
@@ -35,21 +32,14 @@ struct SimSpiderEnv
 	long			max_recursive_depth ;
 	long			request_delay ;
 	long			max_concurrent_count ;
-	int			parser ;
 	funcRequestHeaderProc	*pfuncRequestHeaderProc ;
 	funcRequestBodyProc	*pfuncRequestBodyProc ;
 	funcResponseHeaderProc	*pfuncResponseHeaderProc ;
 	funcResponseBodyProc	*pfuncResponseBodyProc ;
-	funcParseHtmlNodeProc	*pfuncParseHtmlNodeProc ;
-	funcParseJsonNodeProc	*pfuncParseJsonNodeProc ;
 	funcTravelDoneQueueProc	*pfuncTravelDoneQueueProc ;
 	
 	struct MemoryQueue	*request_queue ;
 	struct HashContainer	done_queue ;
-	
-	struct DoneQueueUnit	*pdqu ;
-	
-	void			*p ;
 } ;
 
 struct DoneQueueUnit
@@ -329,15 +319,6 @@ int InitSimSpiderEnv( struct SimSpiderEnv **ppenv , char *log_file_format , ... 
 	AllowEmptyFileExtname( (*ppenv) , 1 );
 	AllowRunOutofWebsite( (*ppenv) , 0 );
 	SetMaxConcurrentCount( (*ppenv) , 1 );
-	SetResponseBodyParser( (*ppenv) , SIMSPIDER_PARSER_FASTHTML );
-	
-	AddSkipXmlTag( "meta" );
-	AddSkipXmlTag( "br" );
-	AddSkipXmlTag( "p" );
-	AddSkipXmlTag( "img" );
-	AddSkipXmlTag( "image" );
-	AddSkipXmlTag( "link" );
-	AddSkipXmlTag( "input" );
 	
 	return 0;
 }
@@ -346,8 +327,6 @@ void CleanSimSpiderEnv( struct SimSpiderEnv **ppenv )
 {
 	DestroyMemoryQueue( & ((*ppenv)->request_queue) );
 	CleanHashContainer( & ((*ppenv)->done_queue) );
-	
-	CleanSkipXmlTags();
 	
 	curl_multi_cleanup( (*ppenv)->curls );
 	curl_global_cleanup();
@@ -417,12 +396,6 @@ void SetMaxConcurrentCount( struct SimSpiderEnv *penv , long max_concurrent_coun
 	return;
 }
 
-void SetResponseBodyParser( struct SimSpiderEnv *penv , int parser )
-{
-	penv->parser = parser ;
-	return;
-}
-
 void SetRequestHeaderProc( struct SimSpiderEnv *penv , funcRequestHeaderProc *pfuncRequestHeaderProc )
 {
 	penv->pfuncRequestHeaderProc = pfuncRequestHeaderProc ;
@@ -444,18 +417,6 @@ void SetResponseHeaderProc( struct SimSpiderEnv *penv , funcResponseHeaderProc *
 void SetResponseBodyProc( struct SimSpiderEnv *penv , funcResponseHeaderProc *pfuncResponseBodyProc )
 {
 	penv->pfuncResponseBodyProc = pfuncResponseBodyProc ;
-	return;
-}
-
-void SetParseHtmlNodeProc( struct SimSpiderEnv *penv , funcParseHtmlNodeProc *pfuncParseHtmlNodeProc )
-{
-	penv->pfuncParseHtmlNodeProc = pfuncParseHtmlNodeProc ;
-	return;
-}
-
-void SetParseJsonNodeProc( struct SimSpiderEnv *penv , funcParseJsonNodeProc *pfuncParseJsonNodeProc )
-{
-	penv->pfuncParseJsonNodeProc = pfuncParseJsonNodeProc ;
 	return;
 }
 
@@ -813,7 +774,7 @@ static int CheckFileExtname( struct SimSpiderEnv *penv , char *propvalue , int p
 	return 0;
 }
 
-int AppendRequestInfo( struct SimSpiderEnv *penv , char *referer_url , char *url , int url_len , long depth )
+int AppendRequestUnit( struct SimSpiderEnv *penv , char *referer_url , char *url , int url_len , long depth )
 {
 	struct DoneQueueUnit	*pdqu = NULL ;
 	
@@ -848,167 +809,11 @@ int AppendRequestInfo( struct SimSpiderEnv *penv , char *referer_url , char *url
 	return 0;
 }
 
-funcCallbackOnXmlProperty CallbackOnXmlProperty ;
-int CallbackOnXmlProperty( char *xpath , int xpath_len , int xpath_size , char *propname , int propname_len , char *propvalue , int propvalue_len , void *p )
-{
-	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)p ;
-	
-	int			nret = 0 ;
-	
-	if( propname_len == 4 && STRNICMP( propname , == , "href" , propname_len ) )
-	{
-		if( pdqu->penv->max_recursive_depth > 1 && pdqu->recursive_depth >= pdqu->penv->max_recursive_depth )
-			return 0;
-		
-		nret = CheckHttpProtocol( propvalue , propvalue_len ) ;
-		if( nret == 0 )
-			return 0;
-		
-		nret = CheckFileExtname( pdqu->penv , propvalue , propvalue_len ) ;
-		if( nret )
-		{
-			char		url[ SIMSPIDER_MAXLEN_URL + 1 ] ;
-			long		url_len ;
-			
-			memset( url , 0x00 , sizeof(url) );
-			strcpy( url , pdqu->url );
-			nret = FormatNewUrl( pdqu->penv , propvalue , propvalue_len , url ) ;
-			if( nret > 0 )
-			{
-				InfoLog( __FILE__ , __LINE__ , "FormatNewUrl[%.*s][%s] return[%d]" , propvalue_len , propvalue , url , nret );
-				return 0;
-			}
-			else if( nret < 0 )
-			{
-				ErrorLog( __FILE__ , __LINE__ , "FormatNewUrl[%.*s][%s] failed[%d]" , propvalue_len , propvalue , url , nret );
-				return 0;
-			}
-			url_len = strlen(url) ;
-			
-			InfoLog( __FILE__ , __LINE__ , ".a.href[%.*s] URL[%s]" , propvalue_len , propvalue , url );
-			
-			nret = GetHashItemPtr( & (pdqu->penv->done_queue) , url , NULL , NULL ) ;
-			if( nret == HASH_RETCODE_ERROR_KEY_NOT_EXIST )
-			{
-				nret = AppendRequestInfo( pdqu->penv , pdqu->url , url , url_len , pdqu->recursive_depth + 1 ) ;
-				if( nret )
-				{
-					ErrorLog( __FILE__ , __LINE__ , "AppendRequestInfo failed[%d]" , nret );
-					return -1;
-				}
-			}
-			else if( nret < 0 )
-			{
-				ErrorLog( __FILE__ , __LINE__ , "GetHashItemPtr failed[%d] errno[%d]" , nret , errno );
-				return -1;
-			}
-		}
-	}
-	
-	return 0;
-}
-
-funcParseHtmlNodeProc ParseHtmlNodeProc ;
-int ParseHtmlNodeProc( int type , char *xpath , int xpath_len , int xpath_size , char *node , int node_len , char *properties , int properties_len , char *content , int content_len , void *p )
-{
-	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)p ;
-	
-	int			nret = 0 ;
-	
-	if( type & FASTERXML_NODE_BRANCH )
-	{
-		if( type & FASTERXML_NODE_ENTER )
-		{
-			DebugLog( __FILE__ , __LINE__ , "ENTER-BRANCH[%.*s]" , xpath_len , xpath );
-		}
-		else if( type & FASTERXML_NODE_LEAVE )
-		{
-			DebugLog( __FILE__ , __LINE__ , "LEAVE-BRANCH[%.*s]" , xpath_len , xpath );
-		}
-	}
-	else if( type & FASTERXML_NODE_LEAF )
-	{
-		DebugLog( __FILE__ , __LINE__ , "LEAF        [%.*s] - [%.*s]" , xpath_len , xpath , content_len , content );
-	}
-	
-	if( pdqu->penv->pfuncParseHtmlNodeProc )
-	{
-		nret = pdqu->penv->pfuncParseHtmlNodeProc( type , xpath , xpath_len , xpath_size , node , node_len , properties , properties_len , content , content_len , p ) ;
-		if( nret == SIMSPIDER_INFO_THEN_DO_IT_FOR_DEFAULT )
-		{
-		}
-		else if( nret )
-		{
-			return nret;
-		}
-		else
-		{
-			return 0;
-		}
-	}
-	
-	if( type & FASTERXML_NODE_LEAF )
-	{
-		if( node_len == 1 && STRNICMP( node , == , "a" , node_len ) )
-		{
-			nret = TravelXmlPropertiesBuffer( properties , properties_len , xpath , xpath_len , xpath_size , & CallbackOnXmlProperty , p );
-			if( nret )
-			{
-				return nret;
-			}
-		}
-	}
-	
-	return 0;
-}
-
-funcParseJsonNodeProc ParseJsonNodeProc ;
-int ParseJsonNodeProc( int type , char *jpath , int jpath_len , int jpath_size , char *node , int node_len , char *content , int content_len , void *p )
-{
-	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)p ;
-	
-	int			nret = 0 ;
-	
-	if( type & FASTERJSON_NODE_BRANCH )
-	{
-		if( type & FASTERJSON_NODE_ENTER )
-		{
-			DebugLog( __FILE__ , __LINE__ , "ENTER-BRANCH[%.*s]" , jpath_len , jpath );
-		}
-		else if( type & FASTERJSON_NODE_LEAVE )
-		{
-			DebugLog( __FILE__ , __LINE__ , "LEAVE-BRANCH[%.*s]" , jpath_len , jpath );
-		}
-	}
-	else if( type & FASTERJSON_NODE_LEAF )
-	{
-		DebugLog( __FILE__ , __LINE__ , "LEAF        [%.*s] - [%.*s]" , jpath_len , jpath , content_len , content );
-	}
-	
-	if( pdqu->penv->pfuncParseJsonNodeProc )
-	{
-		nret = pdqu->penv->pfuncParseJsonNodeProc( type , jpath , jpath_len , jpath_size , node , node_len , content , content_len , p ) ;
-		if( nret == SIMSPIDER_INFO_THEN_DO_IT_FOR_DEFAULT )
-		{
-		}
-		else if( nret )
-		{
-			return nret;
-		}
-		else
-		{
-			return 0;
-		}
-	}
-	
-	return 0;
-}
-
 #define FIND_HREF		" href="
 
 char *strcasestr(const char *haystack, const char *needle);
 
-int FastHtmlLinkParser( char *buffer , struct DoneQueueUnit *pdqu )
+int HtmlLinkParser( char *buffer , struct DoneQueueUnit *pdqu )
 {
 	char		*propvalue = NULL ;
 	int		propvalue_len ;
@@ -1053,7 +858,7 @@ int FastHtmlLinkParser( char *buffer , struct DoneQueueUnit *pdqu )
 			}
 		}
 		
-		if( pdqu->penv->max_recursive_depth > 1 && pdqu->penv->pdqu->recursive_depth >= pdqu->penv->max_recursive_depth )
+		if( pdqu->penv->max_recursive_depth > 1 && pdqu->recursive_depth >= pdqu->penv->max_recursive_depth )
 			return 0;
 		
 		nret = CheckHttpProtocol( propvalue , propvalue_len ) ;
@@ -1086,10 +891,10 @@ int FastHtmlLinkParser( char *buffer , struct DoneQueueUnit *pdqu )
 			nret = GetHashItemPtr( & (pdqu->penv->done_queue) , url , NULL , NULL ) ;
 			if( nret == HASH_RETCODE_ERROR_KEY_NOT_EXIST )
 			{
-				nret = AppendRequestInfo( pdqu->penv , pdqu->url , url , url_len , pdqu->recursive_depth + 1 ) ;
+				nret = AppendRequestUnit( pdqu->penv , pdqu->url , url , url_len , pdqu->recursive_depth + 1 ) ;
 				if( nret )
 				{
-					ErrorLog( __FILE__ , __LINE__ , "AppendRequestInfo failed[%d]" , nret );
+					ErrorLog( __FILE__ , __LINE__ , "AppendRequestUnit failed[%d]" , nret );
 					return -1;
 				}
 			}
@@ -1263,81 +1068,34 @@ static int FinishTask( struct DoneQueueUnit *pdqu )
 		}
 	}
 	
-	if( pdqu->penv->pfuncResponseBodyProc )
+	nret = HtmlLinkParser( pdqu->body.base , pdqu ) ;
+	if( nret )
 	{
-		if( pdqu->penv->pfuncResponseBodyProc != (funcResponseBodyProc*)SIMSPIDER_NO_PASREHTML )
-		{
-			nret = pdqu->penv->pfuncResponseBodyProc( pdqu ) ;
-			if( nret == SIMSPIDER_INFO_THEN_DO_IT_FOR_DEFAULT )
-			{
-				goto _GOTO_THEN_PARSEHTML_FOR_DEFAULT;
-			}
-			else if( nret )
-			{
-				ErrorLog( __FILE__ , __LINE__ , "pfuncResponseBodyProc failed[%d]" , nret );
-				pdqu->status = SIMSPIDER_ERROR_FUNCPROC ;
-				return pdqu->status;
-			}
-		}
+		ErrorLog( __FILE__ , __LINE__ , "FastHtmlParser failed[%d]" , nret );
+		pdqu->status = SIMSPIDER_ERROR_PARSEHTML ;
+		return pdqu->status;
 	}
 	else
 	{
-_GOTO_THEN_PARSEHTML_FOR_DEFAULT :
-		if( pdqu->penv->parser == SIMSPIDER_PARSER_HTML )
+		DebugLog( __FILE__ , __LINE__ , "FastHtmlParser ok" );
+	}
+	
+	if( pdqu->penv->pfuncResponseBodyProc )
+	{
+		nret = pdqu->penv->pfuncResponseBodyProc( pdqu ) ;
+		if( nret )
 		{
-			char	xpath[ SIMSPIDER_MAXLEN_URL + 1 ] ;
-			int	xpath_bufsize ;
-			
-			memset( xpath , 0x00 , sizeof(xpath) );
-			xpath_bufsize = sizeof(xpath) ;
-			nret = TravelXmlBuffer( pdqu->body.base , xpath , xpath_bufsize , & ParseHtmlNodeProc , pdqu->penv ) ;
-			if( nret )
-			{
-				ErrorLog( __FILE__ , __LINE__ , "TravelXmlBuffer failed[%d]" , nret );
-				pdqu->status = SIMSPIDER_ERROR_PARSEHTML ;
-				return pdqu->status;
-			}
-			else
-			{
-				DebugLog( __FILE__ , __LINE__ , "TravelXmlBuffer ok" );
-			}
+			ErrorLog( __FILE__ , __LINE__ , "pfuncResponseBodyProc failed[%d]" , nret );
+			pdqu->status = SIMSPIDER_ERROR_FUNCPROC ;
+			return pdqu->status;
 		}
-		else if( pdqu->penv->parser == SIMSPIDER_PARSER_JSON )
+		else
 		{
-			char	jpath[ SIMSPIDER_MAXLEN_URL + 1 ] ;
-			int	jpath_bufsize ;
-			
-			memset( jpath , 0x00 , sizeof(jpath) );
-			jpath_bufsize = sizeof(jpath) ;
-			nret = TravelJsonBuffer( pdqu->body.base , jpath , jpath_bufsize , & ParseJsonNodeProc , pdqu->penv ) ;
-			if( nret )
-			{
-				ErrorLog( __FILE__ , __LINE__ , "TravelJsonBuffer failed[%d]" , nret );
-				pdqu->status = SIMSPIDER_ERROR_PARSEJSON ;
-				return pdqu->status;
-			}
-			else
-			{
-				DebugLog( __FILE__ , __LINE__ , "TravelJsonBuffer ok" );
-			}
-		}
-		else if( pdqu->penv->parser == SIMSPIDER_PARSER_FASTHTML )
-		{
-			nret = FastHtmlLinkParser( pdqu->body.base , pdqu ) ;
-			if( nret )
-			{
-				ErrorLog( __FILE__ , __LINE__ , "FastHtmlParser failed[%d]" , nret );
-				pdqu->status = SIMSPIDER_ERROR_PARSEHTML ;
-				return pdqu->status;
-			}
-			else
-			{
-				DebugLog( __FILE__ , __LINE__ , "FastHtmlParser ok" );
-			}
+			DebugLog( __FILE__ , __LINE__ , "pfuncResponseBodyProc ok" );
 		}
 	}
 	
-	pdqu->status = 1 ;
+	pdqu->status = SIMSPIDER_INFO_DONE ;
 	
 	return 0;
 }
@@ -1396,10 +1154,10 @@ int SimSpiderGo( struct SimSpiderEnv *penv , char **entry_urls )
 		if( url[url_len-1] != '/' )
 			memcpy( url + url_len , "/" , 2 );
 		
-		nret = AppendRequestInfo( penv , "" , url , url_len , 1 ) ;
+		nret = AppendRequestUnit( penv , "" , url , url_len , 1 ) ;
 		if( nret )
 		{
-			ErrorLog( __FILE__ , __LINE__ , "AppendRequestInfo failed[%d]" , nret );
+			ErrorLog( __FILE__ , __LINE__ , "AppendRequestUnit failed[%d]" , nret );
 			return -1;
 		}
 	}
