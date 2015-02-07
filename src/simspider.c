@@ -1,5 +1,5 @@
 /*
- * simspider - Simple Net Spider
+ * simspider - Net Spider Engine
  * author	: calvin
  * email	: calvinwilliams.c@gmail.com
  *
@@ -15,7 +15,7 @@ int RequestHeaderProc( struct DoneQueueUnit *pdqu )
 	struct curl_slist	*header_list = NULL ;
 	char			buffer[ 1024 + 1 ] ;
 	
-	curl = GetSimSpiderEnvCurl(pdqu) ;
+	curl = GetDoneQueueUnitCurl(pdqu) ;
 	
 	header_list = curl_slist_append( header_list , "User-Agent: Mozilla/5.0(Windows NT 6.1; WOW64; rv:34.0 ) Gecko/20100101 Firefox/34.0" ) ;
 	
@@ -32,21 +32,27 @@ int RequestHeaderProc( struct DoneQueueUnit *pdqu )
 	return 0;
 }
 
+funcResponseBodyProc ResponseBodyProc ;
+int ResponseBodyProc( struct DoneQueueUnit *pdqu )
+{
+	printf( ">>> [%s]\n" , GetDoneQueueUnitUrl(pdqu) );
+
+	return 0;
+}
+
 funcTravelDoneQueueProc TravelDoneQueueProc ;
 void TravelDoneQueueProc( char *key , void *value , long value_len , void *pv )
 {
 	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)value ;
 	
-	printf( "[%4d] [%2ld] [%s] [%s]\n" , GetDoneQueueUnitStatus(pdqu) , GetDoneQueueUnitRecursiveDepth(pdqu) , GetDoneQueueUnitRefererUrl(pdqu) , GetDoneQueueUnitUrl(pdqu) );
+	printf( "[%5d] [%2ld] [%s] [%s]\n" , GetDoneQueueUnitStatus(pdqu) , GetDoneQueueUnitRecursiveDepth(pdqu) , GetDoneQueueUnitRefererUrl(pdqu) , GetDoneQueueUnitUrl(pdqu) );
 	
 	return;
 }
 
-int simspider( char *url , long max_concurrent_count )
+int simspider( char *entry_url , long max_concurrent_count )
 {
 	struct SimSpiderEnv	*penv = NULL ;
-	
-	char			*entry_urls[] = { url , NULL } ;
 	
 	int			nret = 0 ;
 	
@@ -57,15 +63,14 @@ int simspider( char *url , long max_concurrent_count )
 		return 1;
 	}
 	
+	AllowEmptyFileExtname( penv , 1 );
 	SetCertificateFilename( penv , "../cert/server.crt" );
 	SetMaxConcurrentCount( penv , max_concurrent_count );
-	
-	AllowEmptyFileExtname( penv , 1 );
 	SetRequestHeaderProc( penv , & RequestHeaderProc );
-	
+	SetResponseBodyProc( penv , & ResponseBodyProc );
 	SetTravelDoneQueueProc( penv , & TravelDoneQueueProc );
 	
-	nret = SimSpiderGo( penv , entry_urls );
+	nret = SimSpiderGo( penv , entry_url ) ;
 	
 	CleanSimSpiderEnv( & penv );
 	

@@ -90,10 +90,6 @@ PostBuild_Cmds=mkdir "%ProgramFiles%\simspider"	mkdir "%ProgramFiles%\simspider\
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
-SOURCE=..\..\encoding.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\..\HashX.c
 # End Source File
 # Begin Source File
@@ -127,10 +123,6 @@ SOURCE=..\..\memque.h
 # Begin Source File
 
 SOURCE=..\..\simspider.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\..\util.c
 # End Source File
 # End Group
 # Begin Group "Header Files"

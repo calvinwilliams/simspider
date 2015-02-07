@@ -12,8 +12,6 @@ c_FILE		=	\
 			memque.c \
 			HashX.c \
 			LOGC.c \
-			encoding.c \
-			util.c \
 
 c_FILE2		=	\
 			simspider.c \
@@ -28,16 +26,12 @@ HDERINST	=	$(HOME)/exinc/simspider
 
 ###### 编译选项
 CFLAGS		=	-I. \
-			-I$(HOME)/exinc/fasterxml \
-			-I$(HOME)/exinc/fasterjson \
 			-I$(HOME)/include \
 			-I/usr/include \
 
 ###### 链接选项
 LFLAGS		=	-L. \
 			-L$(HOME)/exlib \
-			-lfasterxml \
-			-lfasterjson \
 			-L$(HOME)/lib \
 			-L/usr/lib \
 			-lcurl \

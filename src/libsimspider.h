@@ -1,5 +1,5 @@
 /*
- * simspider - Simple Net Spider
+ * simspider - Net Spider Engine
  * author	: calvin
  * email	: calvinwilliams.c@gmail.com
  *
@@ -75,18 +75,20 @@ extern char    *__SIMSPIDER_VERSION ;
 #define SIMSPIDER_INFO_OK			0
 #define SIMSPIDER_ERROR_ALLOC			-11
 #define SIMSPIDER_ERROR_INTERNAL		-12
-#define SIMSPIDER_ERROR_URL_TOOLONG		-13
+#define SIMSPIDER_ERROR_GETENV			-13
 #define SIMSPIDER_ERROR_SELECT			-14
-#define SIMSPIDER_INFO_DONE			20
-#define SIMSPIDER_ERROR_LIB_MEMQUEUE		-31
-#define SIMSPIDER_ERROR_LIB_HASHX		-32
-#define SIMSPIDER_ERROR_LIB_CURL		-33
-#define SIMSPIDER_ERROR_LIB_LOGC		-34
+#define SIMSPIDER_INFO_DONE			200
+#define SIMSPIDER_ERROR_LIB_MEMQUEUE		-1000
+#define SIMSPIDER_ERROR_LIB_HASHX		-2000
+#define SIMSPIDER_ERROR_LIB_LOGC		-3000
+#define SIMSPIDER_ERROR_LIB_CURL_BASE		-4000
+#define SIMSPIDER_ERROR_LIB_MCURL_BASE		-5000
+#define SIMSPIDER_ERROR_REQUEST_QUEUE_OVERFLOW	-91
+#define SIMSPIDER_ERROR_URL_TOOLONG		-92
+#define SIMSPIDER_ERROR_URL_INVALID		-93
 #define SIMSPIDER_ERROR_FUNCPROC		-95
 #define SIMSPIDER_ERROR_PARSEHTML		-97
 #define SIMSPIDER_ERROR_PARSEJSON		-98
-
-#define SIMSPIDER_INFO_THEN_DO_IT_FOR_DEFAULT	902
 
 struct SimSpiderBuf
 {
@@ -102,13 +104,10 @@ _WINDLL_FUNC int InitSimSpiderEnv( struct SimSpiderEnv **ppenv , char *log_file_
 _WINDLL_FUNC void CleanSimSpiderEnv( struct SimSpiderEnv **ppenv );
 _WINDLL_FUNC void ResetSimSpiderEnv( struct SimSpiderEnv *penv );
 
-#define SIMSPIDER_DEFAULT_VALIDFILENAMEEXTENSION	"htm html shtml cgi fcgi asp aspx php jsp do action"
+#define SIMSPIDER_DEFAULT_REQUESTQUEUE_SIZE		1*1024*1024
+_WINDLL_FUNC int ResizeRequestQueue( struct SimSpiderEnv *penv , long size );
 
-typedef int funcRequestHeaderProc( struct DoneQueueUnit *pdqu );
-typedef int funcRequestBodyProc( struct DoneQueueUnit *pdqu );
-typedef int funcResponseHeaderProc( struct DoneQueueUnit *pdqu );
-typedef int funcResponseBodyProc( struct DoneQueueUnit *pdqu );
-typedef void funcTravelDoneQueueProc( char *key , void *value , long value_len , void *pv );
+#define SIMSPIDER_DEFAULT_VALIDFILENAMEEXTENSION	"htm html shtml cgi fcgi asp aspx php jsp do action"
 
 _WINDLL_FUNC void SetValidFileExtnameSet( struct SimSpiderEnv *penv , char *valid_file_extname_set );
 _WINDLL_FUNC void AllowEmptyFileExtname( struct SimSpiderEnv *penv , int allow_empty_file_extname );
@@ -118,25 +117,29 @@ _WINDLL_FUNC void SetCertificateFilename( struct SimSpiderEnv *penv , char *cert
 _WINDLL_FUNC void SetRequestDelay( struct SimSpiderEnv *penv , long seconds );
 _WINDLL_FUNC void SetMaxConcurrentCount( struct SimSpiderEnv *penv , long max_concurrent_count );
 
+typedef int funcRequestHeaderProc( struct DoneQueueUnit *pdqu );
+typedef int funcRequestBodyProc( struct DoneQueueUnit *pdqu );
+typedef int funcResponseHeaderProc( struct DoneQueueUnit *pdqu );
+typedef int funcResponseBodyProc( struct DoneQueueUnit *pdqu );
+typedef void funcTravelDoneQueueProc( char *key , void *value , long value_len , void *pv );
+
 _WINDLL_FUNC void SetRequestHeaderProc( struct SimSpiderEnv *penv , funcRequestHeaderProc *pfuncRequestHeaderProc );
 _WINDLL_FUNC void SetRequestBodyProc( struct SimSpiderEnv *penv , funcRequestHeaderProc *pfuncRequestBodyProc );
 _WINDLL_FUNC void SetResponseHeaderProc( struct SimSpiderEnv *penv , funcResponseHeaderProc *pfuncResponseHeaderProc );
 _WINDLL_FUNC void SetResponseBodyProc( struct SimSpiderEnv *penv , funcResponseHeaderProc *pfuncResponseBodyProc );
 _WINDLL_FUNC void SetTravelDoneQueueProc( struct SimSpiderEnv *penv , funcTravelDoneQueueProc *pfuncTravelDoneQueueProc );
 
-_WINDLL_FUNC int SimSpiderGo( struct SimSpiderEnv *penv , char **urls );
+_WINDLL_FUNC int AppendRequestQueue( struct SimSpiderEnv *penv , char *referer_url , char *url , int url_len , long depth );
 
-_WINDLL_FUNC char *GetSimSpiderEnvUrl( struct DoneQueueUnit *pdqu );
-_WINDLL_FUNC CURL *GetSimSpiderEnvCurl( struct DoneQueueUnit *pdqu );
-_WINDLL_FUNC struct SimSpiderBuf *GetSimSpiderEnvHeaderBuffer( struct DoneQueueUnit *pdqu );
-_WINDLL_FUNC struct SimSpiderBuf *GetSimSpiderEnvBodyBuffer( struct DoneQueueUnit *pdqu );
+_WINDLL_FUNC int SimSpiderGo( struct SimSpiderEnv *penv , char *entry_url );
 
 _WINDLL_FUNC char *GetDoneQueueUnitRefererUrl( struct DoneQueueUnit *pdqu );
 _WINDLL_FUNC char *GetDoneQueueUnitUrl( struct DoneQueueUnit *pdqu );
 _WINDLL_FUNC int GetDoneQueueUnitStatus( struct DoneQueueUnit *pdqu );
 _WINDLL_FUNC long GetDoneQueueUnitRecursiveDepth( struct DoneQueueUnit *pdqu );
-
-_WINDLL_FUNC int AppendRequestUnit( struct SimSpiderEnv *penv , char *referer_url , char *url , int url_len , long depth );
+_WINDLL_FUNC CURL *GetDoneQueueUnitCurl( struct DoneQueueUnit *pdqu );
+_WINDLL_FUNC struct SimSpiderBuf *GetDoneQueueUnitHeaderBuffer( struct DoneQueueUnit *pdqu );
+_WINDLL_FUNC struct SimSpiderBuf *GetDoneQueueUnitBodyBuffer( struct DoneQueueUnit *pdqu );
 
 _WINDLL_FUNC int ReallocHeaderBuffer( struct DoneQueueUnit *pdqu , long new_bufsize );
 _WINDLL_FUNC int ReallocBodyBuffer( struct DoneQueueUnit *pdqu , long new_bufsize );
@@ -145,41 +148,6 @@ _WINDLL_FUNC int CleanSimSpiderBuffer( struct DoneQueueUnit *pdqu );
 _WINDLL_FUNC void FreeCurlList1Later( struct DoneQueueUnit *pdqu , struct curl_slist *curllist1 );
 _WINDLL_FUNC void FreeCurlList2Later( struct DoneQueueUnit *pdqu , struct curl_slist *curllist2 );
 _WINDLL_FUNC void FreeCurlList3Later( struct DoneQueueUnit *pdqu , struct curl_slist *curllist3 );
-
-/********* util *********/
-
-#ifndef MIN
-#define MIN(a, b)       ((a)<(b)?(a):(b))
-#endif
-#ifndef MAX
-#define MAX(a, b)       ((a)>(b)?(a):(b))
-#endif
-
-_WINDLL_FUNC int IsMatchString(char *pcMatchString, char *pcObjectString, char cMatchMuchCharacters, char cMatchOneCharacters);
-_WINDLL_FUNC int CountCharInStringWithLength( char *str , int len , char c );
-_WINDLL_FUNC int CountCharInString( char *str , char c );
-
-_WINDLL_FUNC int nstoi( char *base , long len );
-_WINDLL_FUNC long nstol( char *base , long len );
-_WINDLL_FUNC float nstof( char *base , long len );
-_WINDLL_FUNC double nstolf( char *base , long len );
-
-_WINDLL_FUNC void EraseGB18030( char *str );
-_WINDLL_FUNC int ConvertBodyEncodingEx( struct DoneQueueUnit *pdqu , char *from_encoding , char *to_encoding );
-
-_WINDLL_FUNC long _GetFileSize(char *filename);
-_WINDLL_FUNC int ReadEntireFile( char *filename , char *mode , char *buf , long *bufsize );
-_WINDLL_FUNC int ReadEntireFileSafely( char *filename , char *mode , char **pbuf , long *pbufsize );
-
-_WINDLL_FUNC char *StringNoEnter( char *str );
-_WINDLL_FUNC int ClearRight( char *str );
-_WINDLL_FUNC int ClearLeft( char *str );
-_WINDLL_FUNC int DeleteChar( char *str , char ch );
-
-/********* iconv *********/
-
-_WINDLL_FUNC char *ConvertContentEncodingEx( char *encFrom , char *encTo , char *inptr , int *inptrlen , char *outptr , int *outptrlen );
-_WINDLL_FUNC char *ConvertContentEncoding( char *encFrom , char *encTo , char *inptr );
 
 /********* LOGC *********/
 
@@ -200,171 +168,6 @@ _WINDLL_FUNC int ErrorHexLog( char *c_filename , long c_fileline , char *buf , l
 _WINDLL_FUNC int WarnHexLog( char *c_filename , long c_fileline , char *buf , long buflen , char *format , ... );
 _WINDLL_FUNC int InfoHexLog( char *c_filename , long c_fileline , char *buf , long buflen , char *format , ... );
 _WINDLL_FUNC int DebugHexLog( char *c_filename , long c_fileline , char *buf , long buflen , char *format , ... );
-
-/********* Html Parser Demo Using fasterxml *********/
-
-/*
-	AddSkipXmlTag( "meta" );
-	AddSkipXmlTag( "br" );
-	AddSkipXmlTag( "p" );
-	AddSkipXmlTag( "img" );
-	AddSkipXmlTag( "image" );
-	AddSkipXmlTag( "link" );
-	AddSkipXmlTag( "input" );
-	
-	CleanSkipXmlTags();
-	
-int CallbackOnXmlProperty( char *xpath , int xpath_len , int xpath_size , char *propname , int propname_len , char *propvalue , int propvalue_len , void *p )
-{
-	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)p ;
-	
-	int			nret = 0 ;
-	
-	if( propname_len == 4 && STRNICMP( propname , == , "href" , propname_len ) )
-	{
-		if( pdqu->penv->max_recursive_depth > 1 && pdqu->recursive_depth >= pdqu->penv->max_recursive_depth )
-			return 0;
-		
-		nret = CheckHttpProtocol( propvalue , propvalue_len ) ;
-		if( nret == 0 )
-			return 0;
-		
-		nret = CheckFileExtname( pdqu->penv , propvalue , propvalue_len ) ;
-		if( nret )
-		{
-			char		url[ SIMSPIDER_MAXLEN_URL + 1 ] ;
-			long		url_len ;
-			
-			memset( url , 0x00 , sizeof(url) );
-			strcpy( url , pdqu->url );
-			nret = FormatNewUrl( pdqu->penv , propvalue , propvalue_len , url ) ;
-			if( nret > 0 )
-			{
-				InfoLog( __FILE__ , __LINE__ , "FormatNewUrl[%.*s][%s] return[%d]" , propvalue_len , propvalue , url , nret );
-				return 0;
-			}
-			else if( nret < 0 )
-			{
-				ErrorLog( __FILE__ , __LINE__ , "FormatNewUrl[%.*s][%s] failed[%d]" , propvalue_len , propvalue , url , nret );
-				return 0;
-			}
-			url_len = strlen(url) ;
-			
-			InfoLog( __FILE__ , __LINE__ , ".a.href[%.*s] URL[%s]" , propvalue_len , propvalue , url );
-			
-			nret = GetHashItemPtr( & (pdqu->penv->done_queue) , url , NULL , NULL ) ;
-			if( nret == HASH_RETCODE_ERROR_KEY_NOT_EXIST )
-			{
-				nret = AppendRequestUnit( pdqu->penv , pdqu->url , url , url_len , pdqu->recursive_depth + 1 ) ;
-				if( nret )
-				{
-					ErrorLog( __FILE__ , __LINE__ , "AppendRequestUnit failed[%d]" , nret );
-					return -1;
-				}
-			}
-			else if( nret < 0 )
-			{
-				ErrorLog( __FILE__ , __LINE__ , "GetHashItemPtr failed[%d] errno[%d]" , nret , errno );
-				return -1;
-			}
-		}
-	}
-	
-	return 0;
-}
-
-int ParseHtmlNodeProc( int type , char *xpath , int xpath_len , int xpath_size , char *node , int node_len , char *properties , int properties_len , char *content , int content_len , void *p )
-{
-	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)p ;
-	
-	int			nret = 0 ;
-	
-	if( type & FASTERXML_NODE_BRANCH )
-	{
-		if( type & FASTERXML_NODE_ENTER )
-		{
-			DebugLog( __FILE__ , __LINE__ , "ENTER-BRANCH[%.*s]" , xpath_len , xpath );
-		}
-		else if( type & FASTERXML_NODE_LEAVE )
-		{
-			DebugLog( __FILE__ , __LINE__ , "LEAVE-BRANCH[%.*s]" , xpath_len , xpath );
-		}
-	}
-	else if( type & FASTERXML_NODE_LEAF )
-	{
-		DebugLog( __FILE__ , __LINE__ , "LEAF        [%.*s] - [%.*s]" , xpath_len , xpath , content_len , content );
-	}
-	
-	if( pdqu->penv->pfuncParseHtmlNodeProc )
-	{
-		nret = pdqu->penv->pfuncParseHtmlNodeProc( type , xpath , xpath_len , xpath_size , node , node_len , properties , properties_len , content , content_len , p ) ;
-		if( nret )
-		{
-			return nret;
-		}
-		else
-		{
-			return 0;
-		}
-	}
-	
-	if( type & FASTERXML_NODE_LEAF )
-	{
-		if( node_len == 1 && STRNICMP( node , == , "a" , node_len ) )
-		{
-			nret = TravelXmlPropertiesBuffer( properties , properties_len , xpath , xpath_len , xpath_size , & CallbackOnXmlProperty , p );
-			if( nret )
-			{
-				return nret;
-			}
-		}
-	}
-	
-	return 0;
-}
-*/
-
-/********* Json Parser Demo Using fasterjson *********/
-
-/*
-int ParseJsonNodeProc( int type , char *jpath , int jpath_len , int jpath_size , char *node , int node_len , char *content , int content_len , void *p )
-{
-	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)p ;
-	
-	int			nret = 0 ;
-	
-	if( type & FASTERJSON_NODE_BRANCH )
-	{
-		if( type & FASTERJSON_NODE_ENTER )
-		{
-			DebugLog( __FILE__ , __LINE__ , "ENTER-BRANCH[%.*s]" , jpath_len , jpath );
-		}
-		else if( type & FASTERJSON_NODE_LEAVE )
-		{
-			DebugLog( __FILE__ , __LINE__ , "LEAVE-BRANCH[%.*s]" , jpath_len , jpath );
-		}
-	}
-	else if( type & FASTERJSON_NODE_LEAF )
-	{
-		DebugLog( __FILE__ , __LINE__ , "LEAF        [%.*s] - [%.*s]" , jpath_len , jpath , content_len , content );
-	}
-	
-	if( pdqu->penv->pfuncParseJsonNodeProc )
-	{
-		nret = pdqu->penv->pfuncParseJsonNodeProc( type , jpath , jpath_len , jpath_size , node , node_len , content , content_len , p ) ;
-		if( nret )
-		{
-			return nret;
-		}
-		else
-		{
-			return 0;
-		}
-	}
-	
-	return 0;
-}
-*/
 
 #ifdef __cplusplus
 }
