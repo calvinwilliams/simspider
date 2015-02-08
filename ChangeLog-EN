@@ -1,3 +1,10 @@
+ver 2.2.0	2015-02-07	calvin
+		* Modify the function SimSpiderGo prototypes. Well, I don't change since
+		* Modify the function name AppendRequestUnit to AppendRequestQueue. Well, I don't change since too
+		* add function ResizeRequestQueue used to adjust the request queue size, in order to adapt to crawl 
+		* Simplify the util module, remove the third-party libraries iconv dependencies
+		* Rearrange the error code
+
 ver 2.1.1	2015-02-05	calvin
 		* Stripping of third-party libraries fasterxml,fasterjson dependencies 
 		

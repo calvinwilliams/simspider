@@ -1,1 +1,190 @@
-To be written
+simspider - Net Spider Engine
+
+1.Overview
+
+Simspider is a lightweight net spider engine, it provides a set of C function interface is used to quickly build your own net spider application, also provides an executable spider program are used to demonstrate how to use the function libaray.
+Simspider only depended on third-party libraries libcurl.
+
+Simspider function interface is very easy to use, the main process is as follows:
+* Create a spider engine environment
+* Set the spider engine environment
+* Crawl all pages recursively from entrance url
+* Destruction of the spider engine environment
+
+There are a large number of alternative options to customize your spider engine environment, as following:
+* Set request queue size
+* Set file extension name set of interest 
+* Whether to allow null file extension name
+* Whether to allow climbed out of the current web site
+* Set the maximum depth of recursion
+* Set the HTTPS certificate file name
+* Set up interval of crawl
+* Set maximum number of concurrent crawl
+
+Simspider spider engine implements a flexible process framework, provides some callback functions pointer to the spider application designers want to crawl at any time point to add their own custom processing logic, as the following:
+* On building the HTTP request header
+* On building the HTTP request body ( POST data etc )
+* After fetch HTTP response header
+* After fetch HTTP response body ( HTML data etc )
+* Review queue after crawl
+
+2.My first spider
+
+Use simspider engine function library is fairly easy to achieve a creeper, here is a simple example:
+[code]
+#include "libsimspider.h"
+
+int main()
+{
+	struct SimSpiderEnv	*penv = NULL ;
+	int			nret = 0 ;
+	
+	nret = InitSimSpiderEnv( & penv , NULL ) ;
+	if( nret )
+	{
+		printf( "InitSimSpiderEnv failed[%d]\n" , nret );
+		return 1;
+	}
+	
+	nret = SimSpiderGo( penv , "http://localhost/" ) ;
+	if( nret )
+	{
+		printf( "SimSpiderGo failed[%d]\n" , nret );
+		return 1;
+	}
+	
+	CleanSimSpiderEnv( & penv );
+	
+	return 0;
+}
+[/code]
+The sample itself doesn't make any sense, because it doesn't throw out any data, but it certainly crawl all web pages of http://localhost:80/
+	
+May I think crawling is slowly, how can enable concurrent crawl. copy that ( 5 concurrents )
+[code]
+	SetMaxConcurrentCount( penv , 5 );
+[/code]
+	
+May I want to add some contents in the HTTP disguise my spider, add a callback function code, and set it to the crawler engine environment
+[code]
+funcRequestHeaderProc RequestHeaderProc ;
+int RequestHeaderProc( struct DoneQueueUnit *pdqu )
+{
+	CURL			*curl = NULL ;
+	struct curl_slist	*header_list = NULL ;
+	char			buffer[ 1024 + 1 ] ;
+	
+	curl = GetDoneQueueUnitCurl(pdqu) ;
+	
+	header_list = curl_slist_append( header_list , "User-Agent: Mozilla/5.0(Windows NT 6.1; WOW64; rv:34.0 ) Gecko/20100101 Firefox/34.0" ) ;
+	
+	if( GetDoneQueueUnitRefererUrl(pdqu) )
+	{
+		memset( buffer , 0x00 , sizeof(buffer) );
+		SNPRINTF( buffer , sizeof(buffer) , "Referer: %s" , GetDoneQueueUnitRefererUrl(pdqu) );
+		header_list = curl_slist_append( header_list , buffer ) ;
+	}
+	
+	curl_easy_setopt( curl , CURLOPT_HTTPHEADER , header_list );
+	FreeCurlList1Later( pdqu , header_list );
+	
+	return 0;
+}
+
+	InitSimSpiderEnv
+	...
+	SetRequestHeaderProc( penv , & RequestHeaderProc );
+	...
+	SimSpiderGo
+[/code]
+	
+May I think real-time output current in my spider crawl url to the screen, add a callback function code, and set it to the crawler engine environment
+[code]
+funcResponseBodyProc ResponseBodyProc ;
+int ResponseBodyProc( struct DoneQueueUnit *pdqu )
+{
+	printf( ">>> [%s]\n" , GetDoneQueueUnitUrl(pdqu) );
+
+	return 0;
+}
+
+	InitSimSpiderEnv
+	...
+	SetResponseBodyProc( penv , & ResponseBodyProc );
+	...
+	SimSpiderGo
+[/code]
+	
+May I want to output all url after the completion of all the sites, new a callback function code, and set it to the crawler engine environment 
+[code]
+funcTravelDoneQueueProc TravelDoneQueueProc ;
+void TravelDoneQueueProc( char *key , void *value , long value_len , void *pv )
+{
+	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)value ;
+	
+	printf( "[%5d] [%2ld] [%s] [%s]\n" , GetDoneQueueUnitStatus(pdqu) , GetDoneQueueUnitRecursiveDepth(pdqu) , GetDoneQueueUnitRefererUrl(pdqu) , GetDoneQueueUnitUrl(pdqu) );
+	
+	return;
+}
+
+	InitSimSpiderEnv
+	...
+	SetTravelDoneQueueProc( penv , & TravelDoneQueueProc );
+	...
+	SimSpiderGo
+[/code]
+	
+Is it easy?
+An complete example in installation package in src/simspider.c
+	
+3.Customize the spider engine environment
+
+* Set request queue size
+The spider environment needs two queues: the request queue and the done queue.
+The request queue size by default is SIMSPIDER_DEFAULT_REQUESTQUEUE_SIZE, If you want to adjust, the calling function ResizeRequestQueue.
+* Set file extension name set of interest 
+The spider engine crawl site recursively, automatically set to ignore the file extensions are not interested in, for default is SIMSPIDER_DEFAULT_VALIDFILENAMEEXTENSION, you can call function SetValidFileExtnameSet to set customize.
+* Whether to allow null file extension name
+Call function AllowEmptyFileExtname to enable or not.
+* Whether to allow climbed out of the current web site
+Call function AllowRunOutofWebsite to enable or not.
+* Set the maximum depth of recursion
+Call function SetMaxRecursiveDepth to set depth of recursion.
+* Set the HTTPS certificate file name
+Call functoin SetCertificateFilename to set certificate file name
+* Set up interval of crawl
+Crawl between two pages need sleep , call function SetRequestDelay, units are seconds.
+* Set maximum number of concurrent crawl
+Serial crawl slowly too? Asynchronous parallel crawl, calling function SetMaxConcurrentCount set of concurrent degree.
+
+4.Callback functions
+
+* On building the HTTP request header
+Add some information on building HTTP request header , write a callback function and set into crawler engine environment.
+* On building the HTTP request body
+Add some information on building HTTP request body , write a callback function and set into crawler engine environment.
+* After fetch HTTP response header
+Get information on after fetch HTTP request header , write a callback function and set into crawler engine environment.
+* After fetch HTTP response body
+Get information on after fetch HTTP request body , write a callback function and set into crawler engine environment.
+* Review queue after crawl
+Convenient save some creeper results update into database.
+
+5.Experience
+
+* How to output engine internal log
+Setup log file name on initialize spider engine environment , struct SimSpiderEnv **ppenv , char *log_file_format , ... ).
+
+* How to preset multiple entrance websites
+Function SimSpiderGo set only one entrance , if there are more than a portal entry, use the function AppendRequestQueue preset to spider engine environment , and then call SimSpiderGo(penv,NULL).
+
+* In building the HTTP request header in callback function, if you create a curl list (struct curl_slist *), must be at the back to release
+Call function FreeCurlList1Later~FreeCurlList3Later store into spider engine that release it at last.
+
+6.Finally
+
+It's time to download it and enjoy yourself.
+
+Welcome to contact me ^_^
+Project Homepage : http://git.oschina.net/calvinwilliams/simspider
+Author EMail     : calvinwilliams.c@gmail.com

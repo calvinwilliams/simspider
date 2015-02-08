@@ -1,3 +1,10 @@
+ver 2.2.0	2015-02-07	calvin
+		* 修改函数SimSpiderGo原型。好了，以后不改啦
+		* 修改函数名AppendRequestUnit为AppendRequestQueue。好了，以后不改啦
+		* 新增函数ResizeRequestQueue用于调整请求队列空间大小，为适应大爬取
+		* 继续简化util模块，去掉了第三方函数库iconv依赖性
+		* 重新整理了错误码
+
 ver 2.1.1	2015-02-05	calvin
 		* 剥离对第三方函数库fasterxml,fasterjson的依赖性
 

@@ -1,1 +1,201 @@
-待写
+simspider - 网络爬虫引擎
+
+1.简介
+
+simspider是一个轻巧的网络爬虫引擎，它提供了一组C函数接口用于快速构建你自己的网络爬虫应用，同时也提供了一个可执行的爬虫程序用于演示函数接口如何使用。
+simspider只依赖于第三方函数库libcurl。
+
+simspider函数接口非常容易使用，主流程如下：
+* 创建爬虫引擎环境
+* 设置爬虫引擎环境
+* 从入口网址递归爬取所有网页
+* 销毁爬虫引擎环境
+
+有大量的可选选项用于定制你的爬虫引擎环境，包含但不限于下列：
+* 设置请求队列空间大小
+* 设置感兴趣的文件扩展名集合
+* 是否允许文件扩展名为空
+* 是否允许爬出当前网站
+* 设置最大递归深度
+* 设置HTTPS证书文件名
+* 设置爬取间隔时间
+* 设置爬取最大并发数量
+
+simspider爬虫引擎实现了一个灵活的流程框架，提供了相当丰富的回调函数指针给予爬虫应用设计者想要在爬取的任何时间点加入自己自定义的处理逻辑，包含但不限于下列：
+* 构建HTTP请求头时
+* 构建HTTP请求体（往往是POST内容）时
+* 获取到HTTP响应头时
+* 获取到HTTP响应体（往往是HTML）时
+（在以上4个回调函数中，爬虫应用设计者可以使用另外一批simspider函数接口得到上层网址、当前网址、响应码、递归深度、CURL对象以及HTTP缓冲区等信息）
+* 爬取完成后检阅完成队列
+
+2.我的第一个爬虫程序
+
+使用simspider爬虫引擎函数库实现一个爬虫应用相当容易，以下是一个简单示例：
+[code]
+#include "libsimspider.h"
+
+int main()
+{
+	struct SimSpiderEnv	*penv = NULL ;
+	int			nret = 0 ;
+	
+	nret = InitSimSpiderEnv( & penv , NULL ) ;
+	if( nret )
+	{
+		printf( "InitSimSpiderEnv failed[%d]\n" , nret );
+		return 1;
+	}
+	
+	nret = SimSpiderGo( penv , "http://localhost/" ) ;
+	if( nret )
+	{
+		printf( "SimSpiderGo failed[%d]\n" , nret );
+		return 1;
+	}
+	
+	CleanSimSpiderEnv( & penv );
+	
+	return 0;
+}
+[/code]
+这个示例本身没有任何意义，因为它没有把爬取到的数据传递出来，但是可以肯定的是，它把网站localhost:80看了个遍。
+	
+可能我觉得串行的爬取比较慢，可以启用并发爬取。把这行插入到创建爬虫引擎环境后面即可（5个异步并发）
+[code]
+	SetMaxConcurrentCount( penv , 5 );
+[/code]
+	
+可能我想在HTTP中加入一些内容伪装我的爬虫，新增一个回调函数代码，并把它设置到爬虫引擎环境中
+[code]
+funcRequestHeaderProc RequestHeaderProc ;
+int RequestHeaderProc( struct DoneQueueUnit *pdqu )
+{
+	CURL			*curl = NULL ;
+	struct curl_slist	*header_list = NULL ;
+	char			buffer[ 1024 + 1 ] ;
+	
+	curl = GetDoneQueueUnitCurl(pdqu) ;
+	
+	header_list = curl_slist_append( header_list , "User-Agent: Mozilla/5.0(Windows NT 6.1; WOW64; rv:34.0 ) Gecko/20100101 Firefox/34.0" ) ;
+	
+	if( GetDoneQueueUnitRefererUrl(pdqu) )
+	{
+		memset( buffer , 0x00 , sizeof(buffer) );
+		SNPRINTF( buffer , sizeof(buffer) , "Referer: %s" , GetDoneQueueUnitRefererUrl(pdqu) );
+		header_list = curl_slist_append( header_list , buffer ) ;
+	}
+	
+	curl_easy_setopt( curl , CURLOPT_HTTPHEADER , header_list );
+	FreeCurlList1Later( pdqu , header_list );
+	
+	return 0;
+}
+
+	InitSimSpiderEnv
+	...
+	SetRequestHeaderProc( penv , & RequestHeaderProc );
+	...
+	SimSpiderGo
+[/code]
+	
+可能我想在爬取中实时输出当前爬取的网址到屏幕上，新增一个回调函数代码，并把它设置到爬虫引擎环境中
+[code]
+funcResponseBodyProc ResponseBodyProc ;
+int ResponseBodyProc( struct DoneQueueUnit *pdqu )
+{
+	printf( ">>> [%s]\n" , GetDoneQueueUnitUrl(pdqu) );
+
+	return 0;
+}
+
+	InitSimSpiderEnv
+	...
+	SetResponseBodyProc( penv , & ResponseBodyProc );
+	...
+	SimSpiderGo
+[/code]
+	
+可能我想在爬取完成后浏览一下之前爬取的所有网址及结果，新增一个回调函数代码，并把它设置到爬虫引擎环境中
+[code]
+funcTravelDoneQueueProc TravelDoneQueueProc ;
+void TravelDoneQueueProc( char *key , void *value , long value_len , void *pv )
+{
+	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)value ;
+	
+	printf( "[%5d] [%2ld] [%s] [%s]\n" , GetDoneQueueUnitStatus(pdqu) , GetDoneQueueUnitRecursiveDepth(pdqu) , GetDoneQueueUnitRefererUrl(pdqu) , GetDoneQueueUnitUrl(pdqu) );
+	
+	return;
+}
+
+	InitSimSpiderEnv
+	...
+	SetTravelDoneQueueProc( penv , & TravelDoneQueueProc );
+	...
+	SimSpiderGo
+[/code]
+	
+是不是很简单？
+以上完整代码见安装中提供的示例src/simspider.c
+	
+3.定制爬虫引擎环境
+
+* 设置请求队列空间大小
+爬虫环境内部需要两个队列：请求队列和完成队列。爬取过程中产生新的网址被压入请求队列，后面逐一弹出爬取。
+请求队列空间大小默认为SIMSPIDER_DEFAULT_REQUESTQUEUE_SIZE，如果你想调整，调用函数ResizeRequestQueue。
+注意：simspider引擎内定义网址最大长度为1024，那么预估的请求队列空间大小一般比“最大可容纳请求网址数量*1024”稍稍大一些。
+* 设置感兴趣的文件扩展名集合
+爬虫引擎在递归爬取网址时，会自动忽略不感兴趣的文件扩展名集合，默认值为SIMSPIDER_DEFAULT_VALIDFILENAMEEXTENSION，你也可以调用函数SetValidFileExtnameSet设置成自己需要的。
+* 是否允许文件扩展名为空
+是否允许爬取“http://www.xxx.com/aaa/”此类的网址？调用函数AllowEmptyFileExtname启用或禁用。
+* 是否允许爬出当前网站
+递归爬取中如果出现当前网站以外的网址，是否也爬取？调用函数AllowRunOutofWebsite启用或禁用。
+* 设置最大递归深度
+递归爬取中入口网址深度为1，以后下一层深度自增一，如果你想要限制深度，调用函数SetMaxRecursiveDepth。
+* 设置HTTPS证书文件名
+爬取HTTPS网址时会询问证书文件，调用函数SetCertificateFilename预置好文件名。
+* 设置爬取间隔时间
+爬取两个网址之间需要休眠的调用函数SetRequestDelay设置时间，单位是秒。
+* 设置爬取最大并发数量
+嫌串行爬取太慢？试试异步并行爬取，调用函数SetMaxConcurrentCount设置并发度。
+
+4.定制流程回调函数
+
+* 构建HTTP请求头时
+想要在爬虫引擎构建HTTP请求头时加入自己的信息，编写一个回调函数，设置到爬虫引擎环境中。
+调用函数GetDoneQueueUnitCurl可以获得当前curl对象，用curl函数curl_easy_setopt设置之，如CURLOPT_HTTPHEADER等。
+* 构建HTTP请求体（往往是POST内容）时
+想要在爬虫引擎构建HTTP请求体时加入自己的信息，编写一个回调函数，设置到爬虫引擎环境中。
+一般只针对某些匹配网址请求前，加入POST数据。调用函数GetDoneQueueUnitBodyBuffer得到HTTP体缓冲区指针，直接填充之。如果空间不够大，调用函数ReallocBodyBuffer调整之。
+如果要调整HTTP请求体缓冲区中的数据，请同时更新数据长度。
+* 获取到HTTP响应头时
+想要在爬虫引擎接收完HTTP响应头后查询自己所需信息，编写一个回调函数，设置到爬虫引擎环境中。
+一般用于提取COOKIE信息等。
+* 获取到HTTP响应体（往往是HTML）时
+想要在爬虫引擎接收完HTTP响应体后查询自己所需信息，编写一个回调函数，设置到爬虫引擎环境中。
+一般用于使用自己喜欢的HTML或JSON解析器提取信息。
+如果要调整HTTP响应体缓冲区中的数据，请同时更新数据长度。
+* 爬取完成后检阅完成队列
+方便有些爬虫最后保存结果到数据库中。
+
+5.其它使用经验
+
+* 如何输出引擎内部日志
+初始化爬虫引擎环境时设置日志文件名，struct SimSpiderEnv **ppenv , char *log_file_format , ... );，和sprintf用法一样。
+
+* 如何预置多个入口网址
+函数SimSpiderGo只能设置一个入口网址，如果有多于一个入口网址，可以用函数AppendRequestQueue先预置到爬虫引擎环境中，然后调用SimSpiderGo(penv,NULL)。
+方便有些爬虫从数据库中提取入口网址列表用于一批入口网址。
+
+* 在构建HTTP请求头回调函数中，如果创建了curl链表(struct curl_slist *)，必须在最后面才能释放
+调用函数FreeCurlList1Later~FreeCurlList3Later把这些链表串到缓存中，引擎会在最后面自动释放之。
+
+* （增加中）
+
+6.最后
+
+是不是越看越心动了？那就赶紧下载来玩玩吧
+
+如有问题或建议欢迎联系我 ^_^
+开源项目首页 : http://git.oschina.net/calvinwilliams/simspider
+作者邮箱     : calvinwilliams.c@gmail.com
