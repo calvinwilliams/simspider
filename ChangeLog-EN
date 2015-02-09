@@ -1,3 +1,8 @@
+ver 2.2.1	2015-02-09	calvin
+		* Fixed the automatic completion bug from entrance to website
+		* Fixed a safe pointer bug
+		* Fixed a bug on WINDOWS platform
+
 ver 2.2.0	2015-02-07	calvin
 		* Modify the function SimSpiderGo prototypes. Well, I don't change since
 		* Modify the function name AppendRequestUnit to AppendRequestQueue. Well, I don't change since too

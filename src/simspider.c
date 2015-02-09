@@ -56,7 +56,7 @@ int simspider( char *entry_url , long max_concurrent_count )
 	
 	int			nret = 0 ;
 	
-	nret = InitSimSpiderEnv( & penv , "simspider.log" ) ;
+	nret = InitSimSpiderEnv( & penv , NULL ) ;
 	if( nret )
 	{
 		printf( "InitSimSpiderEnv failed[%d]\n" , nret );

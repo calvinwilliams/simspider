@@ -2,8 +2,12 @@ simspider - Net Spider Engine
 
 1.Overview
 
-Simspider is a lightweight net spider engine, it provides a set of C function interface is used to quickly build your own net spider application, also provides an executable spider program are used to demonstrate how to use the function libaray.
+Simspider is a lightweight cross-platform web-spider engine, it provides a set of C function interface is used to quickly build your own net spider application, also provides an executable spider program are used to demonstrate how to use the function libaray.
 Simspider only depended on third-party libraries libcurl.
+
+Simspider support platform:
+* UNIX/Linux
+* WINDOWS
 
 Simspider function interface is very easy to use, the main process is as follows:
 * Create a spider engine environment
