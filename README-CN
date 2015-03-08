@@ -161,7 +161,7 @@ void TravelDoneQueueProc( char *key , void *value , long value_len , void *pv )
 * 设置爬取间隔时间
 爬取两个网址之间需要休眠的调用函数SetRequestDelay设置时间，单位是秒。
 * 设置爬取最大并发数量
-嫌串行爬取太慢？试试异步并行爬取，调用函数SetMaxConcurrentCount设置并发度。
+嫌串行爬取太慢？试试多路复用并行爬取，调用函数SetMaxConcurrentCount设置并发度。
 
 4.定制流程回调函数
 

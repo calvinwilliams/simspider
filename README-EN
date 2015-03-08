@@ -159,7 +159,7 @@ Call functoin SetCertificateFilename to set certificate file name
 * Set up interval of crawl
 Crawl between two pages need sleep , call function SetRequestDelay, units are seconds.
 * Set maximum number of concurrent crawl
-Serial crawl slowly too? Asynchronous parallel crawl, calling function SetMaxConcurrentCount set of concurrent degree.
+Serial crawl slowly too? multiplexing parallel crawl, calling function SetMaxConcurrentCount set of concurrent degree.
 
 4.Callback functions
 

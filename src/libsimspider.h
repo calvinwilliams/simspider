@@ -77,7 +77,6 @@ extern char    *__SIMSPIDER_VERSION ;
 #define SIMSPIDER_ERROR_INTERNAL		-12
 #define SIMSPIDER_ERROR_GETENV			-13
 #define SIMSPIDER_ERROR_SELECT			-14
-#define SIMSPIDER_INFO_DONE			200
 #define SIMSPIDER_ERROR_LIB_MEMQUEUE		-1000
 #define SIMSPIDER_ERROR_LIB_HASHX		-2000
 #define SIMSPIDER_ERROR_LIB_LOGC		-3000
@@ -89,6 +88,7 @@ extern char    *__SIMSPIDER_VERSION ;
 #define SIMSPIDER_ERROR_FUNCPROC		-95
 #define SIMSPIDER_ERROR_PARSEHTML		-97
 #define SIMSPIDER_ERROR_PARSEJSON		-98
+#define SIMSPIDER_ERROR_FUNCPROC_INTERRUPT	-99
 
 struct SimSpiderBuf
 {
@@ -127,11 +127,12 @@ _WINDLL_FUNC void SetRequestHeaderProc( struct SimSpiderEnv *penv , funcRequestH
 _WINDLL_FUNC void SetRequestBodyProc( struct SimSpiderEnv *penv , funcRequestHeaderProc *pfuncRequestBodyProc );
 _WINDLL_FUNC void SetResponseHeaderProc( struct SimSpiderEnv *penv , funcResponseHeaderProc *pfuncResponseHeaderProc );
 _WINDLL_FUNC void SetResponseBodyProc( struct SimSpiderEnv *penv , funcResponseHeaderProc *pfuncResponseBodyProc );
+_WINDLL_FUNC void EnableHtmlLinkerParser( struct SimSpiderEnv *penv , int enable );
 _WINDLL_FUNC void SetTravelDoneQueueProc( struct SimSpiderEnv *penv , funcTravelDoneQueueProc *pfuncTravelDoneQueueProc );
 
-_WINDLL_FUNC int AppendRequestQueue( struct SimSpiderEnv *penv , char *referer_url , char *url , int url_len , long depth );
+_WINDLL_FUNC int AppendRequestQueue( struct SimSpiderEnv *penv , char *referer_url , char *url , long depth );
 
-_WINDLL_FUNC int SimSpiderGo( struct SimSpiderEnv *penv , char *entry_url );
+_WINDLL_FUNC int SimSpiderGo( struct SimSpiderEnv *penv , char *referer_url , char *url );
 
 _WINDLL_FUNC char *GetDoneQueueUnitRefererUrl( struct DoneQueueUnit *pdqu );
 _WINDLL_FUNC char *GetDoneQueueUnitUrl( struct DoneQueueUnit *pdqu );
@@ -140,6 +141,11 @@ _WINDLL_FUNC long GetDoneQueueUnitRecursiveDepth( struct DoneQueueUnit *pdqu );
 _WINDLL_FUNC CURL *GetDoneQueueUnitCurl( struct DoneQueueUnit *pdqu );
 _WINDLL_FUNC struct SimSpiderBuf *GetDoneQueueUnitHeaderBuffer( struct DoneQueueUnit *pdqu );
 _WINDLL_FUNC struct SimSpiderBuf *GetDoneQueueUnitBodyBuffer( struct DoneQueueUnit *pdqu );
+_WINDLL_FUNC void SetDoneQueueUnitPrivateDataPtr( struct DoneQueueUnit *pdqu , char *private_data );
+_WINDLL_FUNC char *GetDoneQueueUnitPrivateDataPtr( struct DoneQueueUnit *pdqu );
+
+_WINDLL_FUNC void SetSimSpiderPublicDataPtr( struct SimSpiderEnv *penv , void *public_data );
+_WINDLL_FUNC void *GetSimSpiderPublicDataPtr( struct DoneQueueUnit *pdqu );
 
 _WINDLL_FUNC int ReallocHeaderBuffer( struct DoneQueueUnit *pdqu , long new_bufsize );
 _WINDLL_FUNC int ReallocBodyBuffer( struct DoneQueueUnit *pdqu , long new_bufsize );

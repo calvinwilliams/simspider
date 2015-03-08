@@ -44,19 +44,24 @@ funcTravelDoneQueueProc TravelDoneQueueProc ;
 void TravelDoneQueueProc( char *key , void *value , long value_len , void *pv )
 {
 	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)value ;
+	int			*p_travel_count = NULL ;
 	
 	printf( "[%5d] [%2ld] [%s] [%s]\n" , GetDoneQueueUnitStatus(pdqu) , GetDoneQueueUnitRecursiveDepth(pdqu) , GetDoneQueueUnitRefererUrl(pdqu) , GetDoneQueueUnitUrl(pdqu) );
+	
+	p_travel_count = GetSimSpiderPublicDataPtr( pdqu ) ;
+	(*p_travel_count)++;
 	
 	return;
 }
 
-int simspider( char *entry_url , long max_concurrent_count )
+int simspider( char *url , long max_concurrent_count )
 {
 	struct SimSpiderEnv	*penv = NULL ;
+	int			travel_count ;
 	
 	int			nret = 0 ;
 	
-	nret = InitSimSpiderEnv( & penv , NULL ) ;
+	nret = InitSimSpiderEnv( & penv , "simspider.log" ) ;
 	if( nret )
 	{
 		printf( "InitSimSpiderEnv failed[%d]\n" , nret );
@@ -64,15 +69,21 @@ int simspider( char *entry_url , long max_concurrent_count )
 	}
 	
 	AllowEmptyFileExtname( penv , 1 );
+	SetValidFileExtnameSet( penv , "htm html" );
 	SetCertificateFilename( penv , "../cert/server.crt" );
 	SetMaxConcurrentCount( penv , max_concurrent_count );
+	
+	travel_count = 0 ;
+	SetSimSpiderPublicDataPtr( penv , (void*) & travel_count );
 	SetRequestHeaderProc( penv , & RequestHeaderProc );
 	SetResponseBodyProc( penv , & ResponseBodyProc );
 	SetTravelDoneQueueProc( penv , & TravelDoneQueueProc );
 	
-	nret = SimSpiderGo( penv , entry_url ) ;
+	nret = SimSpiderGo( penv , "" , url ) ;
 	
 	CleanSimSpiderEnv( & penv );
+	
+	printf( "Total [%d] urls\n" , travel_count );
 	
 	return 0;
 }

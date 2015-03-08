@@ -1,3 +1,13 @@
+ver 2.3.0	2015-03-08	calvin
+		* Add the error code SIMSPIDER_ERROR_FUNCPROC_INTERRUPT, if callback function returns the code, crawling process interrupt immediately 
+		* Modify the function AppendRequestQueue prototypes
+		* Modify the function SimSpiderGo prototypes
+		* Add function SetSimSpiderPublicDataPtr¡¢GetSimSpiderPublicDataPtr , Used to pass the crawler engine public data
+		* Add function etDoneQueueUnitPrivateDataPtr¡¢GetDoneQueueUnitPrivateDataPtr , Used to pass private data when crawl each url
+		* Add function EnableHtmlLinkerParser , used to set the crawler engine internal quick HTML links parser enabled, the default is enabled
+		* Fixed a concurrent problem
+		* Optimized the crawler example program 'simspider'
+
 ver 2.2.1	2015-02-09	calvin
 		* Fixed the automatic completion bug from entrance to website
 		* Fixed a safe pointer bug

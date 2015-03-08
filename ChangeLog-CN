@@ -1,3 +1,13 @@
+ver 2.3.0	2015-03-08	calvin
+		* 增加错误码SIMSPIDER_ERROR_FUNCPROC_INTERRUPT，回调函数中返回该错误码，爬行过程立即中断
+		* 修改函数AppendRequestQueue原型
+		* 修改函数SimSpiderGo原型
+		* 新增函数SetSimSpiderPublicDataPtr、GetSimSpiderPublicDataPtr用于传递爬虫引擎公共数据
+		* 新增函数SetDoneQueueUnitPrivateDataPtr、GetDoneQueueUnitPrivateDataPtr用于爬取每个网址时传递私有数据
+		* 新增函数EnableHtmlLinkerParser用于设置爬虫引擎内部快速HTML链接解析器是否启用，默认为启用
+		* 修复了一个并发失效的问题
+		* 优化了自带爬虫示例程序simspider
+
 ver 2.2.1	2015-02-09	calvin
 		* 修正了入口网址的内部自动补全问题
 		* 修正了删除请求队列后没有重置结果指针的安全编码问题

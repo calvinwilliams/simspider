@@ -18,8 +18,8 @@
 #include "LOGC.h"
 #include "libsimspider.h"
 
-char	__SIMSPIDER_VERSION_2_2_1[] = "2.2.1" ;
-char	*__SIMSPIDER_VERSION = __SIMSPIDER_VERSION_2_2_1 ;
+char	__SIMSPIDER_VERSION_2_3_0[] = "2.3.0" ;
+char	*__SIMSPIDER_VERSION = __SIMSPIDER_VERSION_2_3_0 ;
 
 struct SimSpiderEnv
 {
@@ -32,10 +32,12 @@ struct SimSpiderEnv
 	long			max_recursive_depth ;
 	long			request_delay ;
 	long			max_concurrent_count ;
+	void			*public_data ;
 	funcRequestHeaderProc	*pfuncRequestHeaderProc ;
 	funcRequestBodyProc	*pfuncRequestBodyProc ;
 	funcResponseHeaderProc	*pfuncResponseHeaderProc ;
 	funcResponseBodyProc	*pfuncResponseBodyProc ;
+	int			html_linker_parser_enable ;
 	funcTravelDoneQueueProc	*pfuncTravelDoneQueueProc ;
 	
 	struct MemoryQueue	*request_queue ;
@@ -57,6 +59,8 @@ struct DoneQueueUnit
 	struct curl_slist	*free_curllist3_later ;
 	struct SimSpiderBuf	header ;
 	struct SimSpiderBuf	body ;
+	
+	char			*private_data ;
 } ;
 
 static BOOL FreeDoneQueueUnit( void *pv )
@@ -164,6 +168,28 @@ struct SimSpiderBuf *GetDoneQueueUnitHeaderBuffer( struct DoneQueueUnit *pdqu )
 struct SimSpiderBuf *GetDoneQueueUnitBodyBuffer( struct DoneQueueUnit *pdqu )
 {
 	return & (pdqu->body);
+}
+
+void SetDoneQueueUnitPrivateDataPtr( struct DoneQueueUnit *pdqu , char *private_data )
+{
+	pdqu->private_data = private_data ;
+	return;
+}
+
+char *GetDoneQueueUnitPrivateDataPtr( struct DoneQueueUnit *pdqu )
+{
+	return pdqu->private_data;
+}
+
+void SetSimSpiderPublicDataPtr( struct SimSpiderEnv *penv , void *public_data )
+{
+	penv->public_data = public_data ;
+	return;
+}
+
+void *GetSimSpiderPublicDataPtr( struct DoneQueueUnit *pdqu )
+{
+	return pdqu->penv->public_data;
 }
 
 static struct SimSpiderEnv *AllocSimSpiderEnv()
@@ -314,6 +340,7 @@ int InitSimSpiderEnv( struct SimSpiderEnv **ppenv , char *log_file_format , ... 
 	AllowEmptyFileExtname( (*ppenv) , 1 );
 	AllowRunOutofWebsite( (*ppenv) , 0 );
 	SetMaxConcurrentCount( (*ppenv) , 1 );
+	EnableHtmlLinkerParser( (*ppenv) , 1 );
 	
 	return 0;
 }
@@ -434,6 +461,11 @@ void SetResponseBodyProc( struct SimSpiderEnv *penv , funcResponseHeaderProc *pf
 {
 	penv->pfuncResponseBodyProc = pfuncResponseBodyProc ;
 	return;
+}
+
+void EnableHtmlLinkerParser( struct SimSpiderEnv *penv , int html_linker_parser_enable )
+{
+	penv->html_linker_parser_enable = html_linker_parser_enable ;
 }
 
 void SetTravelDoneQueueProc( struct SimSpiderEnv *penv , funcTravelDoneQueueProc *pfuncTravelDoneQueueProc )
@@ -790,10 +822,9 @@ static int CheckFileExtname( struct SimSpiderEnv *penv , char *propvalue , int p
 	return 0;
 }
 
-int AppendRequestQueue( struct SimSpiderEnv *penv , char *referer_url , char *url , int url_len , long depth )
+int AppendRequestQueue( struct SimSpiderEnv *penv , char *referer_url , char *url , long depth )
 {
 	char			format_url[ SIMSPIDER_MAXLEN_URL + 1 ] ;
-	int			format_url_len ;
 	struct DoneQueueUnit	*pdqu = NULL ;
 	
 	int			nret = 0 ;
@@ -803,8 +834,6 @@ int AppendRequestQueue( struct SimSpiderEnv *penv , char *referer_url , char *ur
 		SNPRINTF( format_url , sizeof(format_url) , "http://%s/" , url );
 	else
 		SNPRINTF( format_url , sizeof(format_url) , "%s" , url );
-	
-	format_url_len = strlen( format_url ) ;
 	
 	pdqu = AllocDoneQueueUnit( referer_url , format_url , 0 , depth ) ;
 	if( pdqu == NULL )
@@ -821,7 +850,7 @@ int AppendRequestQueue( struct SimSpiderEnv *penv , char *referer_url , char *ur
 		return SIMSPIDER_ERROR_LIB_HASHX;
 	}
 	
-	nret = AddQueueBlock( penv->request_queue , format_url , format_url_len + 1 , NULL ) ;
+	nret = AddQueueBlock( penv->request_queue , format_url , strlen(format_url) + 1 , NULL ) ;
 	if( nret )
 	{
 		ErrorLog( __FILE__ , __LINE__ , "AddQueueBlock[%s] failed[%d]" , format_url , nret );
@@ -917,7 +946,7 @@ int HtmlLinkParser( char *buffer , struct DoneQueueUnit *pdqu )
 			nret = GetHashItemPtr( & (pdqu->penv->done_queue) , url , NULL , NULL ) ;
 			if( nret == HASH_RETCODE_ERROR_KEY_NOT_EXIST )
 			{
-				nret = AppendRequestQueue( pdqu->penv , pdqu->url , url , url_len , pdqu->recursive_depth + 1 ) ;
+				nret = AppendRequestQueue( pdqu->penv , pdqu->url , url , pdqu->recursive_depth + 1 ) ;
 				if( nret )
 				{
 					ErrorLog( __FILE__ , __LINE__ , "AppendRequestQueue failed[%d]" , nret );
@@ -977,19 +1006,22 @@ size_t CurlResponseBodyProc( char *buffer , size_t size , size_t nmemb , void *p
 
 size_t CurlDebugProc( CURL *curl , curl_infotype type , char *buffer , size_t size , void *p )
 {
-	DebugLog( __FILE__ , __LINE__ , "[%.*s]" , size-2 , buffer );
+	if( type == CURLINFO_HEADER_IN || type == CURLINFO_HEADER_OUT )
+	{
+		DebugLog( __FILE__ , __LINE__ , "[%.*s]" , size , buffer );
+	}
+	
 	return 0;
 }
 
-static int FetchTasksFromRequestQueue( struct SimSpiderEnv *penv )
+static int FetchTasksFromRequestQueue( struct SimSpiderEnv *penv , int *p_still_running )
 {
-	int			i ;
 	struct QueueBlock	*pqb = NULL ;
 	struct DoneQueueUnit	*pdqu = NULL ;	
 	
 	int			nret = 0 ;
 	
-	for( i = 0 ; i < penv->max_concurrent_count ; i++ )
+	for( ; (*p_still_running) < penv->max_concurrent_count ; (*p_still_running)++ )
 	{
 		pqb = NULL ;
 		nret = TravelQueueBlockByOrder( penv->request_queue , & pqb ) ;
@@ -1032,7 +1064,6 @@ static int FetchTasksFromRequestQueue( struct SimSpiderEnv *penv )
 		
 		curl_easy_setopt( pdqu->curl , CURLOPT_COOKIEFILE , "" );
 		
-		curl_easy_setopt( pdqu->curl , CURLOPT_URL , pdqu->url );
 		curl_easy_setopt( pdqu->curl , CURLOPT_TCP_NODELAY , 1L );
 		curl_easy_setopt( pdqu->curl , CURLOPT_FOLLOWLOCATION , 1L );
 		curl_easy_setopt( pdqu->curl , CURLOPT_VERBOSE , 1L );
@@ -1049,18 +1080,6 @@ static int FetchTasksFromRequestQueue( struct SimSpiderEnv *penv )
 		curl_easy_setopt( pdqu->curl , CURLOPT_WRITEFUNCTION , & CurlResponseBodyProc );
 		curl_easy_setopt( pdqu->curl , CURLOPT_WRITEDATA , pdqu );
 		
-		if( STRNCMP( pdqu->url , == , "http:" , 5 ) )
-		{
-			InfoLog( __FILE__ , __LINE__ , "--- [%s] ------------------ HTTP" , pdqu->url );
-		}
-		else if( STRNCMP( pdqu->url , == , "https:" , 6 ) )
-		{
-			InfoLog( __FILE__ , __LINE__ , "--- [%s] ------------------ HTTPS" , pdqu->url );
-			curl_easy_setopt( pdqu->curl , CURLOPT_SSL_VERIFYPEER , 1L );
-			curl_easy_setopt( pdqu->curl , CURLOPT_CAINFO , penv->cert_pathfilename );
-			curl_easy_setopt( pdqu->curl , CURLOPT_SSL_VERIFYHOST , 1L );
-		}
-		
 		if( penv->pfuncRequestHeaderProc )
 		{
 			nret = penv->pfuncRequestHeaderProc( pdqu ) ;
@@ -1068,7 +1087,8 @@ static int FetchTasksFromRequestQueue( struct SimSpiderEnv *penv )
 			{
 				pdqu->status = nret ;
 				RemoveQueueBlock( pdqu->penv->request_queue , pdqu->pqb );
-				continue;
+				if( nret == SIMSPIDER_ERROR_FUNCPROC_INTERRUPT )
+					return nret;
 			}
 		}
 		
@@ -1079,8 +1099,23 @@ static int FetchTasksFromRequestQueue( struct SimSpiderEnv *penv )
 			{
 				pdqu->status = nret ;
 				RemoveQueueBlock( pdqu->penv->request_queue , pdqu->pqb );
-				continue;
+				if( nret == SIMSPIDER_ERROR_FUNCPROC_INTERRUPT )
+					return nret;
 			}
+		}
+		
+		curl_easy_setopt( pdqu->curl , CURLOPT_URL , pdqu->url );
+		
+		if( STRNCMP( pdqu->url , == , "http:" , 5 ) )
+		{
+			InfoLog( __FILE__ , __LINE__ , "--- [%s] ------------------ HTTP" , pdqu->url );
+		}
+		else if( STRNCMP( pdqu->url , == , "https:" , 6 ) )
+		{
+			InfoLog( __FILE__ , __LINE__ , "--- [%s] ------------------ HTTPS" , pdqu->url );
+			curl_easy_setopt( pdqu->curl , CURLOPT_SSL_VERIFYPEER , 1L );
+			curl_easy_setopt( pdqu->curl , CURLOPT_CAINFO , penv->cert_pathfilename );
+			curl_easy_setopt( pdqu->curl , CURLOPT_SSL_VERIFYHOST , 1L );
 		}
 		
 		curl_easy_setopt( pdqu->curl , CURLOPT_PRIVATE , pdqu );
@@ -1102,21 +1137,34 @@ static int ProcessingTask( struct DoneQueueUnit *pdqu )
 		if( nret )
 		{
 			ErrorLog( __FILE__ , __LINE__ , "pfuncResponseHeaderProc failed[%d]" , nret );
-			pdqu->status = SIMSPIDER_ERROR_FUNCPROC ;
-			return pdqu->status;
+			pdqu->status = nret ;
+			if( nret == SIMSPIDER_ERROR_FUNCPROC_INTERRUPT )
+				return nret;
 		}
 	}
 	
-	nret = HtmlLinkParser( pdqu->body.base , pdqu ) ;
-	if( nret )
+	if(
+		pdqu->penv->html_linker_parser_enable
+		&&
+		(
+			pdqu->penv->max_recursive_depth == 0
+			||
+			(
+				pdqu->penv->max_recursive_depth > 1 && pdqu->recursive_depth < pdqu->penv->max_recursive_depth
+			)
+		)
+	)
 	{
-		ErrorLog( __FILE__ , __LINE__ , "FastHtmlParser failed[%d]" , nret );
-		pdqu->status = SIMSPIDER_ERROR_PARSEHTML ;
-		return pdqu->status;
-	}
-	else
-	{
-		DebugLog( __FILE__ , __LINE__ , "FastHtmlParser ok" );
+		nret = HtmlLinkParser( pdqu->body.base , pdqu ) ;
+		if( nret )
+		{
+			ErrorLog( __FILE__ , __LINE__ , "FastHtmlParser failed[%d]" , nret );
+			pdqu->status = nret ;
+		}
+		else
+		{
+			DebugLog( __FILE__ , __LINE__ , "FastHtmlParser ok" );
+		}
 	}
 	
 	if( pdqu->penv->pfuncResponseBodyProc )
@@ -1125,16 +1173,15 @@ static int ProcessingTask( struct DoneQueueUnit *pdqu )
 		if( nret )
 		{
 			ErrorLog( __FILE__ , __LINE__ , "pfuncResponseBodyProc failed[%d]" , nret );
-			pdqu->status = SIMSPIDER_ERROR_FUNCPROC ;
-			return pdqu->status;
+			pdqu->status = nret ;
+			if( nret == SIMSPIDER_ERROR_FUNCPROC_INTERRUPT )
+				return nret;
 		}
 		else
 		{
 			DebugLog( __FILE__ , __LINE__ , "pfuncResponseBodyProc ok" );
 		}
 	}
-	
-	pdqu->status = SIMSPIDER_INFO_DONE ;
 	
 	return 0;
 }
@@ -1167,7 +1214,7 @@ static int FinishTask( struct DoneQueueUnit *pdqu )
 	return 0;
 }
 
-int SimSpiderGo( struct SimSpiderEnv *penv , char *entry_url )
+int SimSpiderGo( struct SimSpiderEnv *penv , char *referer_url , char *url )
 {
 	int			still_running ;
 	CURLMsg			*msg = NULL ;
@@ -1176,9 +1223,9 @@ int SimSpiderGo( struct SimSpiderEnv *penv , char *entry_url )
 	
 	int			nret = 0 ;
 	
-	if( entry_url )
+	if( url )
 	{
-		nret = AppendRequestQueue( penv , "" , entry_url , strlen(entry_url) , 1 ) ;
+		nret = AppendRequestQueue( penv , referer_url , url , 1 ) ;
 		if( nret )
 		{
 			ErrorLog( __FILE__ , __LINE__ , "AppendRequestQueue failed[%d]" , nret );
@@ -1186,14 +1233,14 @@ int SimSpiderGo( struct SimSpiderEnv *penv , char *entry_url )
 		}
 	}
 	
-	nret = FetchTasksFromRequestQueue( penv ) ;
+	still_running = 0 ;
+	nret = FetchTasksFromRequestQueue( penv , & still_running ) ;
 	if( nret )
 	{
 		ErrorLog( __FILE__ , __LINE__ , "FetchTasksFromRequestQueue failed[%d]" , nret );
 		return nret;
 	}
 	
-	still_running = -1 ;
 	while( still_running )
 	{
 		do
@@ -1261,6 +1308,7 @@ int SimSpiderGo( struct SimSpiderEnv *penv , char *entry_url )
 					InfoLog( __FILE__ , __LINE__ , "curl_easy_perform ok" );
 					
 					curl_easy_getinfo( msg->easy_handle , CURLINFO_RESPONSE_CODE , & http_response_code ) ;
+					pdqu->status = http_response_code ;
 					if( http_response_code == 200 )
 					{
 						InfoLog( __FILE__ , __LINE__ , "HTTP RESPONSECODE[%ld]" , http_response_code );
@@ -1269,12 +1317,13 @@ int SimSpiderGo( struct SimSpiderEnv *penv , char *entry_url )
 						if( nret )
 						{
 							ErrorLog( __FILE__ , __LINE__ , "ProcessingTask failed[%d]" , nret );
+							nret = FinishTask( pdqu ) ;
+							return nret;
 						}
 					}
 					else
 					{
 						ErrorLog( __FILE__ , __LINE__ , "HTTP RESPONSECODE[%ld]" , http_response_code );
-						pdqu->status = http_response_code ;
 					}
 				}
 				else
@@ -1291,13 +1340,12 @@ int SimSpiderGo( struct SimSpiderEnv *penv , char *entry_url )
 				return nret;
 			}
 			
-			nret = FetchTasksFromRequestQueue( penv ) ;
+			nret = FetchTasksFromRequestQueue( penv , & still_running ) ;
 			if( nret )
 			{
 				ErrorLog( __FILE__ , __LINE__ , "FetchTasksFromRequestQueue failed[%d]" , nret );
 				return nret;
 			}
-			still_running++;
 		}
 	}
 	
