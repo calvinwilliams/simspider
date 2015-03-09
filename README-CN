@@ -51,7 +51,7 @@ int main()
 		return 1;
 	}
 	
-	nret = SimSpiderGo( penv , "http://localhost/" ) ;
+	nret = SimSpiderGo( penv , "" , "http://localhost/" ) ;
 	if( nret )
 	{
 		printf( "SimSpiderGo failed[%d]\n" , nret );
