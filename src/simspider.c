@@ -11,23 +11,16 @@
 funcRequestHeaderProc RequestHeaderProc ;
 int RequestHeaderProc( struct DoneQueueUnit *pdqu )
 {
-	CURL			*curl = NULL ;
-	struct curl_slist	*header_list = NULL ;
-	char			buffer[ 1024 + 1 ] ;
+	struct curl_slist	*curl_header_list = NULL ;
 	
-	curl = GetDoneQueueUnitCurl(pdqu) ;
-	
-	header_list = curl_slist_append( header_list , "User-Agent: Mozilla/5.0(Windows NT 6.1; WOW64; rv:34.0 ) Gecko/20100101 Firefox/34.0" ) ;
-	
-	if( GetDoneQueueUnitRefererUrl(pdqu) )
+	curl_header_list = GetCurlHeadListPtr( pdqu ) ;
+	curl_header_list = curl_slist_append( curl_header_list , "User-Agent: Mozilla/5.0(Windows NT 6.1; WOW64; rv:34.0 ) Gecko/20100101 Firefox/34.0" ) ;
+	if( curl_header_list == NULL )
 	{
-		memset( buffer , 0x00 , sizeof(buffer) );
-		SNPRINTF( buffer , sizeof(buffer) , "Referer: %s" , GetDoneQueueUnitRefererUrl(pdqu) );
-		header_list = curl_slist_append( header_list , buffer ) ;
+		ErrorLog( __FILE__ , __LINE__ , "curl_slist_append failed" );
+		return SIMSPIDER_ERROR_FUNCPROC_INTERRUPT;
 	}
-	
-	curl_easy_setopt( curl , CURLOPT_HTTPHEADER , header_list );
-	FreeCurlList1Later( pdqu , header_list );
+	FreeCurlHeadList1Later( pdqu , curl_header_list );
 	
 	return 0;
 }
@@ -70,7 +63,7 @@ int simspider( char *url , long max_concurrent_count )
 	
 	AllowEmptyFileExtname( penv , 1 );
 	SetValidFileExtnameSet( penv , "htm html" );
-	SetCertificateFilename( penv , "../cert/server.crt" );
+	SetCertificateFilename( penv , "server.crt" );
 	SetMaxConcurrentCount( penv , max_concurrent_count );
 	
 	travel_count = 0 ;
@@ -97,6 +90,8 @@ static void usage()
 
 int main( int argc , char *argv[] )
 {
+	setbuf( stdout , NULL );
+	
 	if( argc == 1 )
 	{
 		usage();

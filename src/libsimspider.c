@@ -18,8 +18,8 @@
 #include "LOGC.h"
 #include "libsimspider.h"
 
-char	__SIMSPIDER_VERSION_2_3_0[] = "2.3.0" ;
-char	*__SIMSPIDER_VERSION = __SIMSPIDER_VERSION_2_3_0 ;
+char	__SIMSPIDER_VERSION_2_4_0[] = "2.4.0" ;
+char	*__SIMSPIDER_VERSION = __SIMSPIDER_VERSION_2_4_0 ;
 
 struct SimSpiderEnv
 {
@@ -31,7 +31,9 @@ struct SimSpiderEnv
 	int			allow_runoutof_website ;
 	long			max_recursive_depth ;
 	long			request_delay ;
+	int			concurrent_count_automode ;
 	long			max_concurrent_count ;
+	long			adjust_concurrent_count ;
 	void			*public_data ;
 	funcRequestHeaderProc	*pfuncRequestHeaderProc ;
 	funcRequestBodyProc	*pfuncRequestBodyProc ;
@@ -48,12 +50,14 @@ struct DoneQueueUnit
 {
 	char			referer_url [ SIMSPIDER_MAXLEN_URL + 1 ] ;
 	char			url [ SIMSPIDER_MAXLEN_URL + 1 ] ;
+	char			*post_url ;
 	int			status ;
 	long			recursive_depth ;
 	
 	struct SimSpiderEnv	*penv ;
 	struct QueueBlock	*pqb ;
 	CURL			*curl ;
+	struct curl_slist	*free_curlheadlist_later ;
 	struct curl_slist	*free_curllist1_later ;
 	struct curl_slist	*free_curllist2_later ;
 	struct curl_slist	*free_curllist3_later ;
@@ -78,6 +82,11 @@ static BOOL FreeDoneQueueUnit( void *pv )
 			free( pdqu->body.base );
 		}
 		
+		if( pdqu->free_curlheadlist_later )
+		{
+			curl_slist_free_all( pdqu->free_curlheadlist_later );
+			pdqu->free_curlheadlist_later = NULL ;
+		}
 		if( pdqu->free_curllist1_later )
 		{
 			curl_slist_free_all( pdqu->free_curllist1_later );
@@ -247,6 +256,16 @@ int CleanSimSpiderBuffer( struct DoneQueueUnit *pdqu )
 	memset( pdqu->body.base , 0x00 , pdqu->body.bufsize );
 	pdqu->body.len = 0 ;
 	return 0;
+}
+
+struct curl_slist *GetCurlHeadListPtr( struct DoneQueueUnit *pdqu )
+{
+	return pdqu->free_curlheadlist_later;
+}
+
+void FreeCurlHeadList1Later( struct DoneQueueUnit *pdqu , struct curl_slist *curlheadlist )
+{
+	pdqu->free_curlheadlist_later = curlheadlist ;
 }
 
 void FreeCurlList1Later( struct DoneQueueUnit *pdqu , struct curl_slist *curllist1 )
@@ -432,10 +451,21 @@ void SetRequestDelay( struct SimSpiderEnv *penv , long seconds )
 
 void SetMaxConcurrentCount( struct SimSpiderEnv *penv , long max_concurrent_count )
 {
-	penv->max_concurrent_count = max_concurrent_count ;
+	if( max_concurrent_count == SIMSPIDER_CONCURRENTCOUNT_AUTO )
+	{
+		penv->concurrent_count_automode = 1 ;
+		penv->max_concurrent_count = 1 ;
+	}
+	else
+	{
+		penv->concurrent_count_automode = 0 ;
+		penv->max_concurrent_count = max_concurrent_count ;
+	}
+	
 #if CURLMOPT_MAXCONNECTS
 	curl_multi_setopt( penv->curls , CURLMOPT_MAXCONNECTS , penv->max_concurrent_count );
 #endif
+	
 	return;
 }
 
@@ -841,6 +871,7 @@ int AppendRequestQueue( struct SimSpiderEnv *penv , char *referer_url , char *ur
 		ErrorLog( __FILE__ , __LINE__ , "AllocDoneQueueUnit failed errno[%d]" , errno );
 		return SIMSPIDER_ERROR_ALLOC;
 	}
+	pdqu->penv = penv ;
 	
 	nret = PutHashItem( & (penv->done_queue) , format_url , (void*) pdqu , sizeof(struct DoneQueueUnit) , & FreeDoneQueueUnit , HASH_PUTMODE_ADD ) ;
 	if( nret )
@@ -966,7 +997,7 @@ int HtmlLinkParser( char *buffer , struct DoneQueueUnit *pdqu )
 	return 0;
 }
 
-size_t CurlResponseHeaderProc( char *buffer , size_t size , size_t nmemb , void *p )
+size_t CurlHeaderProc( char *buffer , size_t size , size_t nmemb , void *p )
 {
 	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)p ;
 	int			nret = 0 ;
@@ -985,7 +1016,7 @@ size_t CurlResponseHeaderProc( char *buffer , size_t size , size_t nmemb , void 
 	return size*nmemb;
 }
 
-size_t CurlResponseBodyProc( char *buffer , size_t size , size_t nmemb , void *p )
+size_t CurlBodyProc( char *buffer , size_t size , size_t nmemb , void *p )
 {
 	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)p ;
 	int			nret = 0 ;
@@ -1014,10 +1045,11 @@ size_t CurlDebugProc( CURL *curl , curl_infotype type , char *buffer , size_t si
 	return 0;
 }
 
-static int FetchTasksFromRequestQueue( struct SimSpiderEnv *penv , int *p_still_running )
+static int FetchTasksFromRequestQueue( struct SimSpiderEnv *penv , int *p_still_running , CURL **pp_curl )
 {
 	struct QueueBlock	*pqb = NULL ;
 	struct DoneQueueUnit	*pdqu = NULL ;	
+	char			*post_data = NULL ;
 	
 	int			nret = 0 ;
 	
@@ -1051,34 +1083,63 @@ static int FetchTasksFromRequestQueue( struct SimSpiderEnv *penv , int *p_still_
 		pdqu->pqb = pqb ;
 		pdqu->penv = penv ;
 		
-		pdqu->curl = curl_easy_init() ;
-		if( pdqu->curl == NULL )
+		if( pp_curl && (*pp_curl) )
 		{
-			ErrorLog( __FILE__ , __LINE__ , "curl_easy_init failed" );
-			return SIMSPIDER_ERROR_INTERNAL;
+			DebugLog( __FILE__ , __LINE__ , "reuse ok , curl[%p]" , (*pp_curl) );
+			pdqu->curl = (*pp_curl) ;
+			(*pp_curl) = NULL ;
 		}
 		else
 		{
-			DebugLog( __FILE__ , __LINE__ , "curl_easy_init ok , curl[%p]" , pdqu->curl );
+			pdqu->curl = curl_easy_init() ;
+			if( pdqu->curl == NULL )
+			{
+				ErrorLog( __FILE__ , __LINE__ , "curl_easy_init failed" );
+				return SIMSPIDER_ERROR_INTERNAL;
+			}
+			else
+			{
+				DebugLog( __FILE__ , __LINE__ , "curl_easy_init ok , curl[%p]" , pdqu->curl );
+			}
+			
+			if( STRNCMP( pdqu->url , == , "http:" , 5 ) )
+			{
+			}
+			else if( STRNCMP( pdqu->url , == , "https:" , 6 ) )
+			{
+				curl_easy_setopt( pdqu->curl , CURLOPT_SSL_VERIFYPEER , 1L );
+				curl_easy_setopt( pdqu->curl , CURLOPT_CAINFO , penv->cert_pathfilename );
+				curl_easy_setopt( pdqu->curl , CURLOPT_SSL_VERIFYHOST , 1L );
+			}
+			
+			curl_easy_setopt( pdqu->curl , CURLOPT_COOKIEFILE , "" );
+			curl_easy_setopt( pdqu->curl , CURLOPT_TCP_NODELAY , 1L );
+			curl_easy_setopt( pdqu->curl , CURLOPT_FOLLOWLOCATION , 1L );
+			curl_easy_setopt( pdqu->curl , CURLOPT_VERBOSE , 1L );
+			curl_easy_setopt( pdqu->curl , CURLOPT_DEBUGFUNCTION , & CurlDebugProc );
+			curl_easy_setopt( pdqu->curl , CURLOPT_DEBUGDATA , NULL );
+			if( penv->pfuncResponseHeaderProc )
+			{
+				curl_easy_setopt( pdqu->curl , CURLOPT_HEADER , 0 );
+				curl_easy_setopt( pdqu->curl , CURLOPT_HEADERFUNCTION , & CurlHeaderProc );
+			}
+			curl_easy_setopt( pdqu->curl , CURLOPT_WRITEFUNCTION , & CurlBodyProc );
+			curl_easy_setopt( pdqu->curl , CURLOPT_TIMEOUT , 60L );
+			curl_easy_setopt( pdqu->curl , CURLOPT_CONNECTTIMEOUT , 60L );
 		}
 		
-		curl_easy_setopt( pdqu->curl , CURLOPT_COOKIEFILE , "" );
-		
-		curl_easy_setopt( pdqu->curl , CURLOPT_TCP_NODELAY , 1L );
-		curl_easy_setopt( pdqu->curl , CURLOPT_FOLLOWLOCATION , 1L );
-		curl_easy_setopt( pdqu->curl , CURLOPT_VERBOSE , 1L );
-		curl_easy_setopt( pdqu->curl , CURLOPT_DEBUGFUNCTION , & CurlDebugProc );
-		curl_easy_setopt( pdqu->curl , CURLOPT_DEBUGDATA , NULL );
-		
-		if( penv->pfuncResponseHeaderProc )
+		if( GetDoneQueueUnitRefererUrl(pdqu)[0] )
 		{
-			curl_easy_setopt( pdqu->curl , CURLOPT_HEADER , 0 );
-			curl_easy_setopt( pdqu->curl , CURLOPT_HEADERFUNCTION , & CurlResponseHeaderProc );
-			curl_easy_setopt( pdqu->curl , CURLOPT_HEADERDATA , pdqu );
+			char		buffer[ 9 + SIMSPIDER_MAXLEN_URL + 1 ] ;
+			
+			SNPRINTF( buffer , sizeof(buffer) , "Referer: %s" , GetDoneQueueUnitRefererUrl(pdqu) );
+			pdqu->free_curlheadlist_later = curl_slist_append( pdqu->free_curlheadlist_later , buffer ) ;
+			if( pdqu->free_curlheadlist_later == NULL )
+			{
+				ErrorLog( __FILE__ , __LINE__ , "curl_slist_append failed" );
+				return SIMSPIDER_ERROR_ALLOC;
+			}
 		}
-		
-		curl_easy_setopt( pdqu->curl , CURLOPT_WRITEFUNCTION , & CurlResponseBodyProc );
-		curl_easy_setopt( pdqu->curl , CURLOPT_WRITEDATA , pdqu );
 		
 		if( penv->pfuncRequestHeaderProc )
 		{
@@ -1092,6 +1153,33 @@ static int FetchTasksFromRequestQueue( struct SimSpiderEnv *penv , int *p_still_
 			}
 		}
 		
+		curl_easy_setopt( pdqu->curl , CURLOPT_HTTPHEADER , pdqu->free_curlheadlist_later );
+		
+		post_data = strstr( pdqu->url , "??" ) ;
+		if( post_data )
+		{
+			pdqu->post_url = strdup( pdqu->url ) ;
+			if( pdqu->post_url == NULL )
+				return SIMSPIDER_ERROR_ALLOC;
+			pdqu->post_url[ post_data - pdqu->url ] = '\0' ;
+			curl_easy_setopt( pdqu->curl , CURLOPT_URL , pdqu->post_url );
+			curl_easy_setopt( pdqu->curl , CURLOPT_POSTFIELDS , post_data + 2 );
+		}
+		else
+		{
+			curl_easy_setopt( pdqu->curl , CURLOPT_URL , pdqu->url );
+		}
+		
+		if( penv->pfuncResponseHeaderProc )
+		{
+			curl_easy_setopt( pdqu->curl , CURLOPT_HEADERDATA , pdqu );
+		}
+		
+		InfoLog( __FILE__ , __LINE__ , "--- [%s] ------------------ HTTP" , pdqu->url );
+		
+		curl_easy_setopt( pdqu->curl , CURLOPT_WRITEDATA , pdqu );
+		curl_easy_setopt( pdqu->curl , CURLOPT_PRIVATE , pdqu );
+		
 		if( penv->pfuncRequestBodyProc )
 		{
 			nret = penv->pfuncRequestBodyProc( pdqu ) ;
@@ -1104,21 +1192,6 @@ static int FetchTasksFromRequestQueue( struct SimSpiderEnv *penv , int *p_still_
 			}
 		}
 		
-		curl_easy_setopt( pdqu->curl , CURLOPT_URL , pdqu->url );
-		
-		if( STRNCMP( pdqu->url , == , "http:" , 5 ) )
-		{
-			InfoLog( __FILE__ , __LINE__ , "--- [%s] ------------------ HTTP" , pdqu->url );
-		}
-		else if( STRNCMP( pdqu->url , == , "https:" , 6 ) )
-		{
-			InfoLog( __FILE__ , __LINE__ , "--- [%s] ------------------ HTTPS" , pdqu->url );
-			curl_easy_setopt( pdqu->curl , CURLOPT_SSL_VERIFYPEER , 1L );
-			curl_easy_setopt( pdqu->curl , CURLOPT_CAINFO , penv->cert_pathfilename );
-			curl_easy_setopt( pdqu->curl , CURLOPT_SSL_VERIFYHOST , 1L );
-		}
-		
-		curl_easy_setopt( pdqu->curl , CURLOPT_PRIVATE , pdqu );
 		curl_multi_add_handle( penv->curls , pdqu->curl );
 		
 		RemoveQueueBlock( pdqu->penv->request_queue , pdqu->pqb );
@@ -1186,11 +1259,22 @@ static int ProcessingTask( struct DoneQueueUnit *pdqu )
 	return 0;
 }
 	
-static int FinishTask( struct DoneQueueUnit *pdqu )
+static int FinishTask( struct DoneQueueUnit *pdqu , CURL **pp_curl )
 {
 	curl_multi_remove_handle( pdqu->penv->curls , pdqu->curl );
-	DebugLog( __FILE__ , __LINE__ , "curl_easy_cleanup ok , curl[%p]\n" , pdqu->curl );
-	curl_easy_cleanup( pdqu->curl );
+	DebugLog( __FILE__ , __LINE__ , "curl_multi_remove_handle ok , curl[%p]" , pdqu->curl );
+	
+	if( pp_curl == NULL )
+	{
+		curl_easy_cleanup( pdqu->curl );
+		DebugLog( __FILE__ , __LINE__ , "curl_easy_cleanup ok , curl[%p]" , pdqu->curl );
+	}
+	else
+	{
+		(*pp_curl) = pdqu->curl ;
+		DebugLog( __FILE__ , __LINE__ , "restore ok , curl[%p]" , (*pp_curl) );
+	}
+	pdqu->curl = NULL ;
 	
 	if( pdqu->penv->request_delay > 0 )
 	{
@@ -1211,7 +1295,26 @@ static int FinishTask( struct DoneQueueUnit *pdqu )
 #endif
 	}
 	
+	if( pdqu->post_url )
+	{
+		free( pdqu->post_url );
+		pdqu->post_url = NULL ;
+	}
+	
 	return 0;
+}
+
+static unsigned long difftimeval( struct timeval *ptv1 , struct timeval *ptv2 , struct timeval *ptvdiff )
+{
+	struct timeval	tvdiff ;
+	
+	tvdiff.tv_sec = ptv2->tv_sec - ptv1->tv_sec ;
+	tvdiff.tv_usec = ptv2->tv_usec - ptv1->tv_usec ;
+	
+	if( ptvdiff )
+		memcpy( ptvdiff , & tvdiff , sizeof(struct timeval) );
+	
+	return tvdiff.tv_sec * 1000*1000 + tvdiff.tv_usec;
 }
 
 int SimSpiderGo( struct SimSpiderEnv *penv , char *referer_url , char *url )
@@ -1220,6 +1323,11 @@ int SimSpiderGo( struct SimSpiderEnv *penv , char *referer_url , char *url )
 	CURLMsg			*msg = NULL ;
 	int			msgs_in_queue ;
 	struct DoneQueueUnit	*pdqu = NULL ;
+	
+	struct timeval		tv1 , tv2 ;
+	unsigned long		diffusec ;
+	
+	CURL			*curl = NULL ;
 	
 	int			nret = 0 ;
 	
@@ -1234,7 +1342,7 @@ int SimSpiderGo( struct SimSpiderEnv *penv , char *referer_url , char *url )
 	}
 	
 	still_running = 0 ;
-	nret = FetchTasksFromRequestQueue( penv , & still_running ) ;
+	nret = FetchTasksFromRequestQueue( penv , & still_running , NULL ) ;
 	if( nret )
 	{
 		ErrorLog( __FILE__ , __LINE__ , "FetchTasksFromRequestQueue failed[%d]" , nret );
@@ -1253,6 +1361,10 @@ int SimSpiderGo( struct SimSpiderEnv *penv , char *referer_url , char *url )
 			ErrorLog( __FILE__ , __LINE__ , "curl_multi_perform failed[%d]" , nret );
 			return SIMSPIDER_ERROR_LIB_MCURL_BASE-nret;
 		}
+		else
+		{
+			ErrorLog( __FILE__ , __LINE__ , "curl_multi_perform ok , still_running[%d]" , still_running );
+		}
 		
 		if( still_running )
 		{
@@ -1267,19 +1379,44 @@ int SimSpiderGo( struct SimSpiderEnv *penv , char *referer_url , char *url )
 			
 			max_fd = -1 ;
 			curl_multi_fdset( penv->curls , & read_fds , & write_fds , & expection_fds , & max_fd );
+			DebugLog( __FILE__ , __LINE__ , "curl_multi_fdset max_fd[%d]" , max_fd );
 			curl_multi_timeout( penv->curls , & timeout );
 			if( timeout == -1 )
-				timeout = 100 ;
+			{
+				WarnLog( __FILE__ , __LINE__ , "curl_multi_timeout get timeout[%ld]->[1000]ms" , timeout );
+				timeout = 1000 ;
+			}
+			else if( timeout > 60*1000 )
+			{
+				WarnLog( __FILE__ , __LINE__ , "curl_multi_timeout get timeout[%ld]->[1000]ms" , timeout );
+				timeout = 1000 ;
+			}
+			else
+			{
+				DebugLog( __FILE__ , __LINE__ , "curl_multi_timeout get timeout[%ld]ms" , timeout );
+			}
+			
 			if( max_fd == -1 )
 			{
 #if ( defined _WIN32 )
-				Sleep( timeout );
+				Sleep( 1000 );
 #elif ( defined __unix ) || ( defined _AIX ) || ( defined __linux__ ) || ( defined __hpux )
-				sleep( timeout / 1000 );
+				sleep( 1 );
 #endif
 			}
 			else
 			{
+				if( penv->concurrent_count_automode )
+				{
+#if ( defined _WIN32 )
+					SYSTEMTIME	stNow ;
+					GetLocalTime( & stNow );
+					SYSTEMTIME2TIMEVAL_USEC( stNow , tv1 );
+#elif ( defined __unix ) || ( defined _AIX ) || ( defined __linux__ ) || ( defined __hpux )
+					gettimeofday( & tv1 , NULL );
+#endif
+				}
+				
 				tv.tv_sec = timeout / 1000 ;
 				tv.tv_usec = ( timeout % 1000 ) * 1000 ;
 				nret = select( max_fd + 1 , & read_fds , & write_fds , & expection_fds , & tv ) ;
@@ -1287,6 +1424,46 @@ int SimSpiderGo( struct SimSpiderEnv *penv , char *referer_url , char *url )
 				{
 					ErrorLog( __FILE__ , __LINE__ , "select failed[%d] , errno[%d]" , nret , errno );
 					return SIMSPIDER_ERROR_SELECT;
+				}
+				else
+				{
+					DebugLog( __FILE__ , __LINE__ , "select ok[%d]" , nret );
+				}
+				
+				if( penv->concurrent_count_automode )
+				{
+#if ( defined _WIN32 )
+					SYSTEMTIME	stNow ;
+					GetLocalTime( & stNow );
+					SYSTEMTIME2TIMEVAL_USEC( stNow , tv2 );
+#elif ( defined __unix ) || ( defined _AIX ) || ( defined __linux__ ) || ( defined __hpux )
+					gettimeofday( & tv2 , NULL );
+#endif
+					diffusec = difftimeval( & tv1 , & tv2 , NULL ) ;
+					DebugLog( __FILE__ , __LINE__ , "diffusec/1000[%ld]" , diffusec / 1000 );
+					if( diffusec > 500*1000 )
+					{
+						penv->adjust_concurrent_count++;
+					}
+					else if( diffusec < 50*1000 )
+					{
+						penv->adjust_concurrent_count--;
+					}
+				}
+				
+				do
+				{
+					nret = curl_multi_perform( penv->curls , & still_running ) ;
+				}
+				while( nret == CURLM_CALL_MULTI_PERFORM );
+				if( nret != CURLM_OK )
+				{
+					ErrorLog( __FILE__ , __LINE__ , "curl_multi_perform 2 failed[%d]" , nret );
+					return SIMSPIDER_ERROR_LIB_MCURL_BASE-nret;
+				}
+				else
+				{
+					ErrorLog( __FILE__ , __LINE__ , "curl_multi_perform 2 ok , still_running[%d]" , still_running );
 				}
 			}
 		}
@@ -1317,7 +1494,7 @@ int SimSpiderGo( struct SimSpiderEnv *penv , char *referer_url , char *url )
 						if( nret )
 						{
 							ErrorLog( __FILE__ , __LINE__ , "ProcessingTask failed[%d]" , nret );
-							nret = FinishTask( pdqu ) ;
+							nret = FinishTask( pdqu , NULL ) ;
 							return nret;
 						}
 					}
@@ -1333,18 +1510,55 @@ int SimSpiderGo( struct SimSpiderEnv *penv , char *referer_url , char *url )
 				}
 			}
 			
-			nret = FinishTask( pdqu ) ;
+			nret = FinishTask( pdqu , & curl ) ;
 			if( nret )
 			{
 				ErrorLog( __FILE__ , __LINE__ , "FinishTask failed[%d]" , nret );
 				return nret;
 			}
 			
-			nret = FetchTasksFromRequestQueue( penv , & still_running ) ;
+			if( penv->concurrent_count_automode )
+			{
+				if( penv->adjust_concurrent_count > 0 )
+				{
+					if( penv->max_concurrent_count < 10000 )
+					{
+						DebugLog( __FILE__ , __LINE__ , "max_concurrent_count[%ld]++" , penv->max_concurrent_count );
+						penv->max_concurrent_count++;
+#if CURLMOPT_MAXCONNECTS
+						curl_multi_setopt( penv->curls , CURLMOPT_MAXCONNECTS , penv->max_concurrent_count );
+#endif
+					}
+					
+					penv->adjust_concurrent_count = 0 ;
+				}
+				else if( penv->adjust_concurrent_count < 0 )
+				{
+					if( penv->max_concurrent_count > 1 )
+					{
+						DebugLog( __FILE__ , __LINE__ , "max_concurrent_count[%ld]--" , penv->max_concurrent_count );
+						penv->max_concurrent_count--;
+#if CURLMOPT_MAXCONNECTS
+						curl_multi_setopt( penv->curls , CURLMOPT_MAXCONNECTS , penv->max_concurrent_count );
+#endif
+					}
+					
+					penv->adjust_concurrent_count = 0 ;
+				}
+			}
+			
+			nret = FetchTasksFromRequestQueue( penv , & still_running , & curl ) ;
 			if( nret )
 			{
 				ErrorLog( __FILE__ , __LINE__ , "FetchTasksFromRequestQueue failed[%d]" , nret );
 				return nret;
+			}
+			
+			if( curl )
+			{
+				DebugLog( __FILE__ , __LINE__ , "curl_easy_cleanup ok , curl[%p]" , curl );
+				curl_easy_cleanup( curl );
+				curl = NULL ;
 			}
 		}
 	}

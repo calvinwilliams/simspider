@@ -64,6 +64,10 @@ extern "C" {
 #endif
 #endif
 
+#if ( defined _WIN32 )
+#define SYSTEMTIME2TIMEVAL_USEC(_syst_,_tv_)	(_tv_).tv_usec = (_syst_).wMilliseconds * 1000 ;
+#endif
+
 /********* simspider *********/
 
 extern char    *__SIMSPIDER_VERSION ;
@@ -108,6 +112,7 @@ _WINDLL_FUNC void ResetSimSpiderEnv( struct SimSpiderEnv *penv );
 _WINDLL_FUNC int ResizeRequestQueue( struct SimSpiderEnv *penv , long size );
 
 #define SIMSPIDER_DEFAULT_VALIDFILENAMEEXTENSION	"htm html shtml cgi fcgi asp aspx php jsp do action"
+#define SIMSPIDER_CONCURRENTCOUNT_AUTO			0
 
 _WINDLL_FUNC void SetValidFileExtnameSet( struct SimSpiderEnv *penv , char *valid_file_extname_set );
 _WINDLL_FUNC void AllowEmptyFileExtname( struct SimSpiderEnv *penv , int allow_empty_file_extname );
@@ -150,6 +155,9 @@ _WINDLL_FUNC void *GetSimSpiderPublicDataPtr( struct DoneQueueUnit *pdqu );
 _WINDLL_FUNC int ReallocHeaderBuffer( struct DoneQueueUnit *pdqu , long new_bufsize );
 _WINDLL_FUNC int ReallocBodyBuffer( struct DoneQueueUnit *pdqu , long new_bufsize );
 _WINDLL_FUNC int CleanSimSpiderBuffer( struct DoneQueueUnit *pdqu );
+
+_WINDLL_FUNC struct curl_slist *GetCurlHeadListPtr( struct DoneQueueUnit *pdqu );
+_WINDLL_FUNC void FreeCurlHeadList1Later( struct DoneQueueUnit *pdqu , struct curl_slist *curlheadlist );
 
 _WINDLL_FUNC void FreeCurlList1Later( struct DoneQueueUnit *pdqu , struct curl_slist *curllist1 );
 _WINDLL_FUNC void FreeCurlList2Later( struct DoneQueueUnit *pdqu , struct curl_slist *curllist2 );

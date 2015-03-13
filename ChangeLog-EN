@@ -1,3 +1,11 @@
+ver 2.4.0	2015-03-13	calvin
+		* Add multiplexing concurrency automatic adjustment mechanism
+		* Add HTTP request header custom special list
+		* Append request header 'Referer' automatically
+		* Improve the main process framework of events for performance
+		* The curl object reuse mechanism for performance
+		* Adjust the sample crawler 'simspider' code
+
 ver 2.3.0	2015-03-08	calvin
 		* Add the error code SIMSPIDER_ERROR_FUNCPROC_INTERRUPT, if callback function returns the code, crawling process interrupt immediately 
 		* Modify the function AppendRequestQueue prototypes

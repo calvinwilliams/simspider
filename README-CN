@@ -51,7 +51,7 @@ int main()
 		return 1;
 	}
 	
-	nret = SimSpiderGo( penv , "" , "http://localhost/" ) ;
+	nret = SimSpiderGo( penv , "http://localhost/" ) ;
 	if( nret )
 	{
 		printf( "SimSpiderGo failed[%d]\n" , nret );
@@ -162,6 +162,7 @@ void TravelDoneQueueProc( char *key , void *value , long value_len , void *pv )
 爬取两个网址之间需要休眠的调用函数SetRequestDelay设置时间，单位是秒。
 * 设置爬取最大并发数量
 嫌串行爬取太慢？试试多路复用并行爬取，调用函数SetMaxConcurrentCount设置并发度。
+当设置成SIMSPIDER_CONCURRENTCOUNT_AUTO时将自动调整。（试验性功能）
 
 4.定制流程回调函数
 

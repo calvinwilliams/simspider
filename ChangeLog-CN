@@ -1,3 +1,11 @@
+ver 2.4.0	2015-03-13	calvin
+		* 新增多路复用并发数自动调整机制
+		* 新增HTTP请求头自定义专用链表
+		* 自动增加Referer请求头选项
+		* 完善了主流程框架对事件的响应以提高性能
+		* curl对象复用机制以提高性能
+		* 调整了示例爬虫simspider代码
+
 ver 2.3.0	2015-03-08	calvin
 		* 增加错误码SIMSPIDER_ERROR_FUNCPROC_INTERRUPT，回调函数中返回该错误码，爬行过程立即中断
 		* 修改函数AppendRequestQueue原型
