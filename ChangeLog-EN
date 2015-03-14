@@ -1,3 +1,8 @@
+ver 2.5.0	2015-03-14	calvin
+		* Adjusted function FuncTravelDoneQueueProc prototype
+		* Add request queue and queue callback mechanism, the user can alternative the two queue using database or Redis and so on ( experimental )
+		* Fixed a problem with url contains multibyte-characters
+
 ver 2.4.0	2015-03-13	calvin
 		* Add multiplexing concurrency automatic adjustment mechanism
 		* Add HTTP request header custom special list

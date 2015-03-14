@@ -75,6 +75,7 @@ extern char    *__SIMSPIDER_VERSION ;
 #define SIMSPIDER_MAXLEN_FILENAME		256
 #define SIMSPIDER_MAXLEN_URL			1024
 #define SIMSPIDER_VALID_FILE_EXTNAME_SET	256
+#define SIMSPIDER_VALID_HTML_FILE_EXTNAME_SET	256
 
 #define SIMSPIDER_INFO_OK			0
 #define SIMSPIDER_ERROR_ALLOC			-11
@@ -111,10 +112,12 @@ _WINDLL_FUNC void ResetSimSpiderEnv( struct SimSpiderEnv *penv );
 #define SIMSPIDER_DEFAULT_REQUESTQUEUE_SIZE		1*1024*1024
 _WINDLL_FUNC int ResizeRequestQueue( struct SimSpiderEnv *penv , long size );
 
-#define SIMSPIDER_DEFAULT_VALIDFILENAMEEXTENSION	"htm html shtml cgi fcgi asp aspx php jsp do action"
+#define SIMSPIDER_DEFAULT_VALIDFILENAMEEXTENSION	""
+#define SIMSPIDER_DEFAULT_VALIDHTMLFILENAMEEXTENSION	"htm html shtml cgi fcgi asp aspx php jsp do action"
 #define SIMSPIDER_CONCURRENTCOUNT_AUTO			0
 
 _WINDLL_FUNC void SetValidFileExtnameSet( struct SimSpiderEnv *penv , char *valid_file_extname_set );
+_WINDLL_FUNC void SetValidHtmlFileExtnameSet( struct SimSpiderEnv *penv , char *valid_html_file_extname_set );
 _WINDLL_FUNC void AllowEmptyFileExtname( struct SimSpiderEnv *penv , int allow_empty_file_extname );
 _WINDLL_FUNC void AllowRunOutofWebsite( struct SimSpiderEnv *penv , int allow_runoutof_website );
 _WINDLL_FUNC void SetMaxRecursiveDepth( struct SimSpiderEnv *penv , long max_recursive_depth );
@@ -122,11 +125,15 @@ _WINDLL_FUNC void SetCertificateFilename( struct SimSpiderEnv *penv , char *cert
 _WINDLL_FUNC void SetRequestDelay( struct SimSpiderEnv *penv , long seconds );
 _WINDLL_FUNC void SetMaxConcurrentCount( struct SimSpiderEnv *penv , long max_concurrent_count );
 
+_WINDLL_FUNC int AppendRequestQueue( struct SimSpiderEnv *penv , char *referer_url , char *url , long depth );
+
+_WINDLL_FUNC int SimSpiderGo( struct SimSpiderEnv *penv , char *referer_url , char *url );
+
 typedef int funcRequestHeaderProc( struct DoneQueueUnit *pdqu );
 typedef int funcRequestBodyProc( struct DoneQueueUnit *pdqu );
 typedef int funcResponseHeaderProc( struct DoneQueueUnit *pdqu );
 typedef int funcResponseBodyProc( struct DoneQueueUnit *pdqu );
-typedef void funcTravelDoneQueueProc( char *key , void *value , long value_len , void *pv );
+typedef void funcTravelDoneQueueProc( unsigned char *key , void *value , long value_len , void *pv );
 
 _WINDLL_FUNC void SetRequestHeaderProc( struct SimSpiderEnv *penv , funcRequestHeaderProc *pfuncRequestHeaderProc );
 _WINDLL_FUNC void SetRequestBodyProc( struct SimSpiderEnv *penv , funcRequestHeaderProc *pfuncRequestBodyProc );
@@ -135,9 +142,30 @@ _WINDLL_FUNC void SetResponseBodyProc( struct SimSpiderEnv *penv , funcResponseH
 _WINDLL_FUNC void EnableHtmlLinkerParser( struct SimSpiderEnv *penv , int enable );
 _WINDLL_FUNC void SetTravelDoneQueueProc( struct SimSpiderEnv *penv , funcTravelDoneQueueProc *pfuncTravelDoneQueueProc );
 
-_WINDLL_FUNC int AppendRequestQueue( struct SimSpiderEnv *penv , char *referer_url , char *url , long depth );
+typedef int funcPushRequestQueueUnitProc( void *request_queue_env , char url[SIMSPIDER_MAXLEN_URL+1] );
+typedef int funcTravelRequestQueueUnitProc( void *request_queue_env , char url[SIMSPIDER_MAXLEN_URL+1] );
+typedef int funcPopupRequestQueueUnitProc( void *request_queue_env , char url[SIMSPIDER_MAXLEN_URL+1] );
 
-_WINDLL_FUNC int SimSpiderGo( struct SimSpiderEnv *penv , char *referer_url , char *url );
+_WINDLL_FUNC void SetRequestQueueEnv( struct SimSpiderEnv *penv , void *request_queue_env );
+_WINDLL_FUNC void SetPushRequestQueueUnitProc( struct SimSpiderEnv *penv , funcPushRequestQueueUnitProc *pfuncPushRequestQueueUnitProc );
+_WINDLL_FUNC void SetTravelRequestQueueUnitProc( struct SimSpiderEnv *penv , funcTravelRequestQueueUnitProc *pfuncTravelRequestQueueUnitProc );
+_WINDLL_FUNC void SetPopupRequestQueueUnitProc( struct SimSpiderEnv *penv , funcPopupRequestQueueUnitProc *pfuncPopupRequestQueueUnitProc );
+
+typedef int funcQueryDoneQueueUnitProc( void *done_queue_env , struct DoneQueueUnit *pdqu );
+typedef int funcAddDoneQueueUnitProc( void *done_queue_env , struct DoneQueueUnit *pdqu );
+typedef int funcUpdateDoneQueueUnitProc( void *done_queue_env , struct DoneQueueUnit *pdqu );
+
+_WINDLL_FUNC void SetDoneQueueEnv( struct SimSpiderEnv *penv , void *done_queue_env );
+_WINDLL_FUNC void SetQueryDoneQueueUnitProc( struct SimSpiderEnv *penv , funcQueryDoneQueueUnitProc *pfuncQueryDoneQueueUnitProc );
+_WINDLL_FUNC void SetAddDoneQueueUnitProc( struct SimSpiderEnv *penv , funcAddDoneQueueUnitProc *pfuncAddDoneQueueUnitProc );
+_WINDLL_FUNC void SetUpdateDoneQueueUnitProc( struct SimSpiderEnv *penv , funcUpdateDoneQueueUnitProc *pfuncUpdateDoneQueueUnitProc );
+
+_WINDLL_FUNC struct curl_slist *GetCurlHeadListPtr( struct DoneQueueUnit *pdqu );
+_WINDLL_FUNC void FreeCurlHeadList1Later( struct DoneQueueUnit *pdqu , struct curl_slist *curlheadlist );
+
+_WINDLL_FUNC void FreeCurlList1Later( struct DoneQueueUnit *pdqu , struct curl_slist *curllist1 );
+_WINDLL_FUNC void FreeCurlList2Later( struct DoneQueueUnit *pdqu , struct curl_slist *curllist2 );
+_WINDLL_FUNC void FreeCurlList3Later( struct DoneQueueUnit *pdqu , struct curl_slist *curllist3 );
 
 _WINDLL_FUNC char *GetDoneQueueUnitRefererUrl( struct DoneQueueUnit *pdqu );
 _WINDLL_FUNC char *GetDoneQueueUnitUrl( struct DoneQueueUnit *pdqu );
@@ -155,13 +183,6 @@ _WINDLL_FUNC void *GetSimSpiderPublicDataPtr( struct DoneQueueUnit *pdqu );
 _WINDLL_FUNC int ReallocHeaderBuffer( struct DoneQueueUnit *pdqu , long new_bufsize );
 _WINDLL_FUNC int ReallocBodyBuffer( struct DoneQueueUnit *pdqu , long new_bufsize );
 _WINDLL_FUNC int CleanSimSpiderBuffer( struct DoneQueueUnit *pdqu );
-
-_WINDLL_FUNC struct curl_slist *GetCurlHeadListPtr( struct DoneQueueUnit *pdqu );
-_WINDLL_FUNC void FreeCurlHeadList1Later( struct DoneQueueUnit *pdqu , struct curl_slist *curlheadlist );
-
-_WINDLL_FUNC void FreeCurlList1Later( struct DoneQueueUnit *pdqu , struct curl_slist *curllist1 );
-_WINDLL_FUNC void FreeCurlList2Later( struct DoneQueueUnit *pdqu , struct curl_slist *curllist2 );
-_WINDLL_FUNC void FreeCurlList3Later( struct DoneQueueUnit *pdqu , struct curl_slist *curllist3 );
 
 /********* LOGC *********/
 

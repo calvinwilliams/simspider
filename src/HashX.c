@@ -27,9 +27,9 @@ static int FreeMDHashTreeLeaf( struct MDHashTree *pmdht , struct MDHashNode **pp
 	return 0;
 }
 
-static int AllocMDHashNode( struct MDHashTree *pmdht , struct MDHashNode **pp_node , char *key , void *value , long value_len , BOOL (*pfuncFreeMDHashNodeProc)(void *pv) , int mode )
+static int AllocMDHashNode( struct MDHashTree *pmdht , struct MDHashNode **pp_node , unsigned char *key , void *value , long value_len , BOOL (*pfuncFreeMDHashNodeProc)(void *pv) , int mode )
 {
-	char		*tmp = NULL ;
+	unsigned char		*tmp = NULL ;
 	
 	if( pmdht == NULL )
 		return HASH_RETCODE_ERROR_PARAMETER;
@@ -93,7 +93,7 @@ static int AllocMDHashNode( struct MDHashTree *pmdht , struct MDHashNode **pp_no
 	}
 }
 
-static int QueryMDHashNode( struct MDHashNode *p_node , char *key , struct MDHashNode **pp_node , void **pp_value , long *p_value_len )
+static int QueryMDHashNode( struct MDHashNode *p_node , unsigned char *key , struct MDHashNode **pp_node , void **pp_value , long *p_value_len )
 {
 	void		**pp = NULL ;
 	
@@ -132,7 +132,7 @@ static int QueryMDHashNode( struct MDHashNode *p_node , char *key , struct MDHas
 	}
 }
 
-static int TravelMDHashNode( struct MDHashNode *p_node , char *travel_key_buffer , long travel_key_bufsize , long depth , void pfuncTravelProc(char *key,void *value,long value_len,void *pv) , void *pv )
+static int TravelMDHashNode( struct MDHashNode *p_node , unsigned char *travel_key_buffer , long travel_key_bufsize , long depth , void pfuncTravelProc(unsigned char *key,void *value,long value_len,void *pv) , void *pv )
 {
 	long		l ;
 	
@@ -193,7 +193,7 @@ int CleanMDHashTree( struct MDHashTree *pmdht )
 	return 0;
 }
 
-int PutMDHashNode( struct MDHashTree *pmdht , char *key , void *value , long value_len , BOOL (*pfuncFreeMDHashNodeProc)(void *pv) , int mode )
+int PutMDHashNode( struct MDHashTree *pmdht , unsigned char *key , void *value , long value_len , BOOL (*pfuncFreeMDHashNodeProc)(void *pv) , int mode )
 {
 	if( pmdht == NULL )
 		return HASH_RETCODE_ERROR_PARAMETER;
@@ -201,7 +201,7 @@ int PutMDHashNode( struct MDHashTree *pmdht , char *key , void *value , long val
 	return AllocMDHashNode( pmdht , & (pmdht->p_node) , key , value , value_len , pfuncFreeMDHashNodeProc , mode );
 }
 
-int GetMDHashNodePtr( struct MDHashTree *pmdht , char *key , void **pp_value , long *p_value_len )
+int GetMDHashNodePtr( struct MDHashTree *pmdht , unsigned char *key , void **pp_value , long *p_value_len )
 {
 	if( pmdht == NULL )
 		return HASH_RETCODE_ERROR_PARAMETER;
@@ -209,7 +209,7 @@ int GetMDHashNodePtr( struct MDHashTree *pmdht , char *key , void **pp_value , l
 	return QueryMDHashNode( pmdht->p_node , key , NULL , pp_value , p_value_len );
 }
 
-int DeleteMDHashNode( struct MDHashTree *pmdht , char *key )
+int DeleteMDHashNode( struct MDHashTree *pmdht , unsigned char *key )
 {
 	struct MDHashNode	*p_node = NULL ;
 	
@@ -279,7 +279,7 @@ int DeleteAllMDHashNode( struct MDHashTree *pmdht )
 	return _DeleteAllMDHashNode( pmdht , NULL );
 }
 
-int TravelMDHashTree( struct MDHashTree *pmdht , char *travel_key_buffer , long travel_key_bufsize , void pfuncTravelProc(char *key,void *value,long value_len,void *pv) , void *pv )
+int TravelMDHashTree( struct MDHashTree *pmdht , unsigned char *travel_key_buffer , long travel_key_bufsize , void pfuncTravelProc(unsigned char *key,void *value,long value_len,void *pv) , void *pv )
 {
 	if( pmdht == NULL )
 		return HASH_RETCODE_ERROR_PARAMETER;
@@ -355,7 +355,7 @@ struct MDHashNode *GetMDHashRootNode( struct MDHashTree *pmdht )
 
 /* ∆’Õ®π˛œ£À„∑®*/
 
-static int QueryHashUnitPtr( struct HashArray *pha , char *key , struct HashUnit **pp_unit , void **pp_value , long *p_value_len )
+static int QueryHashUnitPtr( struct HashArray *pha , unsigned char *key , struct HashUnit **pp_unit , void **pp_value , long *p_value_len )
 {
 	unsigned long	index ;
 	unsigned long	l ;
@@ -394,7 +394,7 @@ static int QueryHashUnitPtr( struct HashArray *pha , char *key , struct HashUnit
 	return 0;
 }
 
-static unsigned long funcHashExpressions_DEFAULT( char *key )
+static unsigned long funcHashExpressions_DEFAULT( unsigned char *key )
 {
 	unsigned long   hashval = 5381 ;
 	
@@ -559,7 +559,7 @@ int CleanHashArray( struct HashArray *pha )
 	return nret;
 }
 
-int PutHashUnit( struct HashArray *pha , char *key , void *value , long value_len , BOOL (*pfuncFreeHashUnitProc)(void *pv) , int mode )
+int PutHashUnit( struct HashArray *pha , unsigned char *key , void *value , long value_len , BOOL (*pfuncFreeHashUnitProc)(void *pv) , int mode )
 {
 	unsigned long	index ;
 	unsigned long	l ;
@@ -654,7 +654,7 @@ _PUT_AGAIN :
 	return 0;
 }
 
-int GetHashUnitPtr( struct HashArray *pha , char *key , void **pp_value , long *p_value_len )
+int GetHashUnitPtr( struct HashArray *pha , unsigned char *key , void **pp_value , long *p_value_len )
 {
 	if( pha == NULL )
 		return HASH_RETCODE_ERROR_PARAMETER;
@@ -662,7 +662,7 @@ int GetHashUnitPtr( struct HashArray *pha , char *key , void **pp_value , long *
 	return QueryHashUnitPtr( pha , key , NULL , pp_value , p_value_len );
 }
 
-int DeleteHashUnit( struct HashArray *pha , char *key )
+int DeleteHashUnit( struct HashArray *pha , unsigned char *key )
 {
 	struct HashUnit		*p_unit = NULL ;
 	int			nret = 0 ;
@@ -758,7 +758,7 @@ int CleanHashContainer( struct HashContainer *phc )
 	}
 }
 
-int PutHashItem( struct HashContainer *phc , char *key , void *value , long value_len , BOOL (*pfuncFreeItemProc)(void *pv) , int mode )
+int PutHashItem( struct HashContainer *phc , unsigned char *key , void *value , long value_len , BOOL (*pfuncFreeItemProc)(void *pv) , int mode )
 {
 	if( phc == NULL )
 		return HASH_RETCODE_ERROR_PARAMETER;
@@ -777,7 +777,7 @@ int PutHashItem( struct HashContainer *phc , char *key , void *value , long valu
 	}
 }
 
-int GetHashItemPtr( struct HashContainer *phc , char *key , void **pp_value , long *p_value_len )
+int GetHashItemPtr( struct HashContainer *phc , unsigned char *key , void **pp_value , long *p_value_len )
 {
 	if( phc == NULL )
 		return HASH_RETCODE_ERROR_PARAMETER;
@@ -796,7 +796,7 @@ int GetHashItemPtr( struct HashContainer *phc , char *key , void **pp_value , lo
 	}
 }
 
-int DeleteHashItem( struct HashContainer *phc , char *key )
+int DeleteHashItem( struct HashContainer *phc , unsigned char *key )
 {
 	if( phc == NULL )
 		return HASH_RETCODE_ERROR_PARAMETER;
@@ -853,9 +853,9 @@ void *GetHashAlgorithmObject( struct HashContainer *phc , int algorithm )
 	}
 }
 
-int TravelHashContainer( struct HashContainer *phc , char *travel_key_buffer , long travel_key_bufsize , void pfuncTravelProc(char *key,void *value,long value_len,void *pv) , void *pv )
+int TravelHashContainer( struct HashContainer *phc , unsigned char *travel_key_buffer , long travel_key_bufsize , void pfuncTravelProc(unsigned char *key,void *value,long value_len,void *pv) , void *pv )
 {
-	char		buffer[ 1024 + 1 ] ;
+	unsigned char		buffer[ 1024 + 1 ] ;
 	
 	if( phc == NULL )
 		return HASH_RETCODE_ERROR_PARAMETER;

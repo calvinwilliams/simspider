@@ -67,12 +67,12 @@ struct MDHashTree
 _WINDLL_EXPORT int InitMDHashTree( struct MDHashTree *pmdht );
 _WINDLL_EXPORT int CleanMDHashTree( struct MDHashTree *pmdht );
 
-_WINDLL_EXPORT int PutMDHashNode( struct MDHashTree *pmdht , char *key , void *value , long value_len , BOOL (*pfuncFreeMDHashNodeProc)(void *pv) , int mode );
-_WINDLL_EXPORT int GetMDHashNodePtr( struct MDHashTree *pmdht , char *key , void **pp_value , long *p_value_len );
-_WINDLL_EXPORT int DeleteMDHashNode( struct MDHashTree *pmdht , char *key );
+_WINDLL_EXPORT int PutMDHashNode( struct MDHashTree *pmdht , unsigned char *key , void *value , long value_len , BOOL (*pfuncFreeMDHashNodeProc)(void *pv) , int mode );
+_WINDLL_EXPORT int GetMDHashNodePtr( struct MDHashTree *pmdht , unsigned char *key , void **pp_value , long *p_value_len );
+_WINDLL_EXPORT int DeleteMDHashNode( struct MDHashTree *pmdht , unsigned char *key );
 _WINDLL_EXPORT int DeleteAllMDHashNode( struct MDHashTree *pmdht );
 
-_WINDLL_EXPORT int TravelMDHashTree( struct MDHashTree *pmdht , char *travel_key_buffer , long travel_key_bufsize , void pfuncTravelProc(char *key,void *value,long value_len,void *pv) , void *pv );
+_WINDLL_EXPORT int TravelMDHashTree( struct MDHashTree *pmdht , unsigned char *travel_key_buffer , long travel_key_bufsize , void pfuncTravelProc(unsigned char *key,void *value,long value_len,void *pv) , void *pv );
 _WINDLL_EXPORT int ReclaimInvalidMDHashNode( struct MDHashTree *pmdht );
 _WINDLL_EXPORT struct MDHashNode *GetMDHashRootNode( struct MDHashTree *pmdht );
 
@@ -80,7 +80,7 @@ _WINDLL_EXPORT struct MDHashNode *GetMDHashRootNode( struct MDHashTree *pmdht );
 
 typedef BOOL funcFreeHashUnitProc(void *pv) ;
 
-typedef unsigned long funcHashExpressions( char *key ) ;
+typedef unsigned long funcHashExpressions( unsigned char *key ) ;
 
 struct HashArray
 {
@@ -104,10 +104,10 @@ struct HashArray
 _WINDLL_EXPORT int InitHashArray( struct HashArray *pha );
 _WINDLL_EXPORT int CleanHashArray( struct HashArray *pha );
 
-_WINDLL_EXPORT int PutHashUnit( struct HashArray *pha , char *key , void *value , long value_len , BOOL (*pfuncFreeHashUnitProc)(void *pv) , int mode );
+_WINDLL_EXPORT int PutHashUnit( struct HashArray *pha , unsigned char *key , void *value , long value_len , BOOL (*pfuncFreeHashUnitProc)(void *pv) , int mode );
 
-_WINDLL_EXPORT int GetHashUnitPtr( struct HashArray *pha , char *key , void **pp_value , long *p_value_len );
-_WINDLL_EXPORT int DeleteHashUnit( struct HashArray *pha , char *key );
+_WINDLL_EXPORT int GetHashUnitPtr( struct HashArray *pha , unsigned char *key , void **pp_value , long *p_value_len );
+_WINDLL_EXPORT int DeleteHashUnit( struct HashArray *pha , unsigned char *key );
 _WINDLL_EXPORT int DeleteAllHashUnit( struct HashArray *pha );
 
 _WINDLL_EXPORT int SetHashArrayEnv( struct HashArray *pha , unsigned long prealloc_count , unsigned long increment_count , funcHashExpressions *pfuncHashExpressions );
@@ -129,13 +129,13 @@ struct HashContainer
 _WINDLL_EXPORT int InitHashContainer( struct HashContainer *phc , int algorithm );
 _WINDLL_EXPORT int CleanHashContainer( struct HashContainer *phc );
 
-_WINDLL_EXPORT int PutHashItem( struct HashContainer *phc , char *key , void *value , long value_len , BOOL (*pfuncFreeItemProc)(void *pv) , int mode );
-_WINDLL_EXPORT int GetHashItemPtr( struct HashContainer *phc , char *key , void **pp_value , long *p_value_len );
-_WINDLL_EXPORT int DeleteHashItem( struct HashContainer *phc , char *key );
+_WINDLL_EXPORT int PutHashItem( struct HashContainer *phc , unsigned char *key , void *value , long value_len , BOOL (*pfuncFreeItemProc)(void *pv) , int mode );
+_WINDLL_EXPORT int GetHashItemPtr( struct HashContainer *phc , unsigned char *key , void **pp_value , long *p_value_len );
+_WINDLL_EXPORT int DeleteHashItem( struct HashContainer *phc , unsigned char *key );
 _WINDLL_EXPORT int DeleteAllHashItem( struct HashContainer *phc );
 
 _WINDLL_EXPORT void *GetHashAlgorithmObject( struct HashContainer *phc , int algorithm );
-_WINDLL_EXPORT int TravelHashContainer( struct HashContainer *phc , char *travel_key_buffer , long travel_key_bufsize , void pfuncTravelProc(char *key,void *value,long value_len,void *pv) , void *pv );
+_WINDLL_EXPORT int TravelHashContainer( struct HashContainer *phc , unsigned char *travel_key_buffer , long travel_key_bufsize , void pfuncTravelProc(unsigned char *key,void *value,long value_len,void *pv) , void *pv );
 
 #ifdef __cplusplus
 }

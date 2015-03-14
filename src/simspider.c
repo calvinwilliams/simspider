@@ -34,7 +34,7 @@ int ResponseBodyProc( struct DoneQueueUnit *pdqu )
 }
 
 funcTravelDoneQueueProc TravelDoneQueueProc ;
-void TravelDoneQueueProc( char *key , void *value , long value_len , void *pv )
+void TravelDoneQueueProc( unsigned char *key , void *value , long value_len , void *pv )
 {
 	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)value ;
 	int			*p_travel_count = NULL ;
@@ -61,8 +61,7 @@ int simspider( char *url , long max_concurrent_count )
 		return 1;
 	}
 	
-	AllowEmptyFileExtname( penv , 1 );
-	SetValidFileExtnameSet( penv , "htm html" );
+	ResizeRequestQueue( penv , 10*1024*1024 );
 	SetCertificateFilename( penv , "server.crt" );
 	SetMaxConcurrentCount( penv , max_concurrent_count );
 	
