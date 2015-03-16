@@ -1,3 +1,7 @@
+ver 2.5.1	2015-03-16	calvin
+		* 解决了一个编译问题
+		* 新增函数MoveUnsuccessfulDoneQueueUnitsToRequestQueue,ResetDoneQueue用于移回完成队列中不成功的请求到请求队列
+
 ver 2.5.0	2015-03-14	calvin
 		* 调整了函数funcTravelDoneQueueProc原型
 		* 新增请求队列和完成队列回调机制，使用者可以用数据库或Redis等自己实现这两个队列替代引擎内部默认实现（实验性）

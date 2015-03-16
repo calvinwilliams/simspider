@@ -18,8 +18,8 @@
 #include "LOGC.h"
 #include "libsimspider.h"
 
-char	__SIMSPIDER_VERSION_2_5_0[] = "2.5.0" ;
-char	*__SIMSPIDER_VERSION = __SIMSPIDER_VERSION_2_5_0 ;
+char	__SIMSPIDER_VERSION_2_5_1[] = "2.5.1" ;
+char	*__SIMSPIDER_VERSION = __SIMSPIDER_VERSION_2_5_1 ;
 
 struct SimSpiderEnv
 {
@@ -59,6 +59,8 @@ struct SimSpiderEnv
 	struct HashContainer		done_queue ;
 	
 	void				*public_data ;
+	
+	unsigned long			move_unsuccessful_done_queue ;
 } ;
 
 struct DoneQueueUnit
@@ -217,6 +219,67 @@ void SetDoneQueueUnitPrivateDataPtr( struct DoneQueueUnit *pdqu , char *private_
 char *GetDoneQueueUnitPrivateDataPtr( struct DoneQueueUnit *pdqu )
 {
 	return pdqu->private_data;
+}
+
+funcTravelDoneQueueProc TravelDoneQueueForMovingProc ;
+void TravelDoneQueueForMovingProc( unsigned char *key , void *value , long value_len , void *pv )
+{
+	struct SimSpiderEnv	*penv = (struct SimSpiderEnv *) pv ;
+	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *) value ;
+	int			nret = 0 ;
+	
+	if( pdqu->status == 200 )
+		return;
+	
+	if( penv->pfuncPushRequestQueueUnitProc )
+	{
+		nret = penv->pfuncPushRequestQueueUnitProc( penv->request_queue_env , pdqu->url ) ;
+		if( nret )
+		{
+			ErrorLog( __FILE__ , __LINE__ , "pfuncPushRequestQueueUnitProc failed[%d]" , nret );
+			return;
+		}
+	}
+	else
+	{
+		nret = AddQueueBlock( penv->request_queue , pdqu->url , strlen(pdqu->url) + 1 , NULL ) ;
+		if( nret )
+		{
+			ErrorLog( __FILE__ , __LINE__ , "AddQueueBlock[%s] failed[%d]" , pdqu->url , nret );
+			return;
+		}
+		else
+		{
+			DebugLog( __FILE__ , __LINE__ , "AddQueueBlock[%s][%ld] ok" , pdqu->url , pdqu->recursive_depth );
+		}
+	}
+	
+	penv->move_unsuccessful_done_queue++;
+	
+	return;
+}
+
+unsigned long MoveUnsuccessfulDoneQueueUnitsToRequestQueue( struct SimSpiderEnv *penv )
+{
+	char		url[ SIMSPIDER_MAXLEN_URL + 1 ] ;
+	int		nret = 0 ;
+	
+	memset( url , 0x00 , sizeof(url) );
+	penv->move_unsuccessful_done_queue = 0 ;
+	nret = TravelHashContainer( & (penv->done_queue) , (unsigned char *) url , sizeof(url) , & TravelDoneQueueForMovingProc , (void*)penv );
+	if( nret )
+	{
+		ErrorLog( __FILE__ , __LINE__ , "TravelHashContainer failed[%d]" , nret );
+		return SIMSPIDER_ERROR_INTERNAL;
+	}
+	
+	return penv->move_unsuccessful_done_queue;
+}
+
+void ResetDoneQueue( struct SimSpiderEnv *penv )
+{
+	DeleteAllHashItem( & (penv->done_queue) );
+	return;
 }
 
 void SetSimSpiderPublicDataPtr( struct SimSpiderEnv *penv , void *public_data )
@@ -989,7 +1052,7 @@ int AppendRequestQueue( struct SimSpiderEnv *penv , char *referer_url , char *ur
 	}
 	else
 	{
-		nret = PutHashItem( & (penv->done_queue) , format_url , (void*) pdqu , sizeof(struct DoneQueueUnit) , & FreeDoneQueueUnit , HASH_PUTMODE_ADD ) ;
+		nret = PutHashItem( & (penv->done_queue) , (unsigned char *) format_url , (void*) pdqu , sizeof(struct DoneQueueUnit) , & FreeDoneQueueUnit , HASH_PUTMODE_ADD ) ;
 		if( nret )
 		{
 			ErrorLog( __FILE__ , __LINE__ , "PutHashItem failed[%d] errno[%d]" , nret , errno );
@@ -1102,7 +1165,7 @@ static int HtmlLinkParser( char *buffer , struct DoneQueueUnit *pdqu )
 			}
 			else
 			{
-				nret = GetHashItemPtr( & (pdqu->penv->done_queue) , url , NULL , NULL ) ;
+				nret = GetHashItemPtr( & (pdqu->penv->done_queue) , (unsigned char *) url , NULL , NULL ) ;
 				if( nret == HASH_RETCODE_ERROR_KEY_NOT_EXIST )
 				{
 					nret = 0 ;
@@ -1248,7 +1311,7 @@ static int FetchTasksFromRequestQueue( struct SimSpiderEnv *penv , int *p_still_
 		}
 		else
 		{
-			nret = GetHashItemPtr( & (penv->done_queue) , url , (void**) & pdqu , NULL ) ;
+			nret = GetHashItemPtr( & (penv->done_queue) , (unsigned char *) url , (void**) & pdqu , NULL ) ;
 			if( nret )
 			{
 				ErrorLog( __FILE__ , __LINE__ , "GetHashItemPtr2[%s] failed[%d] errno[%d]" , url , nret , errno );
@@ -1722,18 +1785,18 @@ int SimSpiderGo( struct SimSpiderEnv *penv , char *referer_url , char *url )
 					if( http_response_code == 200 )
 					{
 						InfoLog( __FILE__ , __LINE__ , "HTTP RESPONSECODE[%ld]" , http_response_code );
-						
-						nret = ProcessingTask( pdqu ) ;
-						if( nret )
-						{
-							ErrorLog( __FILE__ , __LINE__ , "ProcessingTask failed[%d]" , nret );
-							FinishTask( pdqu , NULL );
-							return nret;
-						}
 					}
 					else
 					{
 						ErrorLog( __FILE__ , __LINE__ , "HTTP RESPONSECODE[%ld]" , http_response_code );
+					}
+					
+					nret = ProcessingTask( pdqu ) ;
+					if( nret )
+					{
+						ErrorLog( __FILE__ , __LINE__ , "ProcessingTask failed[%d]" , nret );
+						FinishTask( pdqu , NULL );
+						return nret;
 					}
 				}
 				else
@@ -1801,7 +1864,7 @@ int SimSpiderGo( struct SimSpiderEnv *penv , char *referer_url , char *url )
 		char		url[ SIMSPIDER_MAXLEN_URL + 1 ] ;
 		
 		memset( url , 0x00 , sizeof(url) );
-		nret = TravelHashContainer( & (penv->done_queue) , (unsigned char *)url , sizeof(url) , penv->pfuncTravelDoneQueueProc , NULL );
+		nret = TravelHashContainer( & (penv->done_queue) , (unsigned char *) url , sizeof(url) , penv->pfuncTravelDoneQueueProc , NULL );
 		if( nret )
 		{
 			ErrorLog( __FILE__ , __LINE__ , "TravelHashContainer failed[%d]" , nret );

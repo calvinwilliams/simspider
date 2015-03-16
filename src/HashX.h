@@ -94,7 +94,7 @@ struct HashArray
 	
 	struct HashUnit
 	{
-		char			*key ;
+		unsigned char		*key ;
 		void			*value ;
 		long			value_len ;
 		funcFreeHashUnitProc	*pfuncFreeHashUnitProc ;

@@ -29,7 +29,7 @@ static int FreeMDHashTreeLeaf( struct MDHashTree *pmdht , struct MDHashNode **pp
 
 static int AllocMDHashNode( struct MDHashTree *pmdht , struct MDHashNode **pp_node , unsigned char *key , void *value , long value_len , BOOL (*pfuncFreeMDHashNodeProc)(void *pv) , int mode )
 {
-	unsigned char		*tmp = NULL ;
+	char		*tmp = NULL ;
 	
 	if( pmdht == NULL )
 		return HASH_RETCODE_ERROR_PARAMETER;
@@ -367,7 +367,7 @@ static int QueryHashUnitPtr( struct HashArray *pha , unsigned char *key , struct
 	
 	for( l = 0 ; l < pha->prealloc_count ; l++ )
 	{
-		if( pha->p_units[index].key && strcmp( pha->p_units[index].key , key ) == 0 )
+		if( pha->p_units[index].key && strcmp( (char*) (pha->p_units[index].key) , (char*) key ) == 0 )
 		{
 			break;
 		}
@@ -426,7 +426,7 @@ static int ConvertToNewHashArray( struct HashArray *pha , struct HashArray *new_
 				{
 					break;
 				}
-				else if( strcmp( new_pha->p_units[index].key , p_unit->key ) == 0 )
+				else if( strcmp( (char*)(new_pha->p_units[index].key) , (char*)(p_unit->key) ) == 0 )
 				{
 					return HASH_RETCODE_ERROR_KEY_EXIST;
 				}
@@ -588,7 +588,7 @@ _PUT_AGAIN :
 			
 			break;
 		}
-		else if( strcmp( pha->p_units[index].key , key ) == 0 )
+		else if( strcmp( (char*)(pha->p_units[index].key) , (char*)key ) == 0 )
 		{
 			if( ( mode & HASH_PUTMODE_ADD ) )
 				return HASH_RETCODE_ERROR_KEY_EXIST;
@@ -624,7 +624,7 @@ _PUT_AGAIN :
 	
 	if( pha->p_units[index].key == NULL )
 	{
-		pha->p_units[index].key = (char*)strdup( key ) ;
+		pha->p_units[index].key = (unsigned char*)strdup( (char*)key ) ;
 		if( pha->p_units[index].key == NULL )
 		{
 			free( value );

@@ -177,6 +177,9 @@ _WINDLL_FUNC struct SimSpiderBuf *GetDoneQueueUnitBodyBuffer( struct DoneQueueUn
 _WINDLL_FUNC void SetDoneQueueUnitPrivateDataPtr( struct DoneQueueUnit *pdqu , char *private_data );
 _WINDLL_FUNC char *GetDoneQueueUnitPrivateDataPtr( struct DoneQueueUnit *pdqu );
 
+_WINDLL_FUNC unsigned long MoveUnsuccessfulDoneQueueUnitsToRequestQueue( struct SimSpiderEnv *penv );
+_WINDLL_FUNC void ResetDoneQueue( struct SimSpiderEnv *penv );
+
 _WINDLL_FUNC void SetSimSpiderPublicDataPtr( struct SimSpiderEnv *penv , void *public_data );
 _WINDLL_FUNC void *GetSimSpiderPublicDataPtr( struct DoneQueueUnit *pdqu );
 

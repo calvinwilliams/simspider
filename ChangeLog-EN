@@ -1,3 +1,7 @@
+ver 2.5.1	2015-03-16	calvin
+		* Solve a problem of compilation
+		* Add function 'MoveUnsuccessfulDoneQueueUnitsToRequestQueue','ResetDoneQueue' used to move back to request queue from done queue
+
 ver 2.5.0	2015-03-14	calvin
 		* Adjusted function FuncTravelDoneQueueProc prototype
 		* Add request queue and queue callback mechanism, the user can alternative the two queue using database or Redis and so on ( experimental )
