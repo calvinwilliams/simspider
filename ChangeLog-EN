@@ -1,3 +1,12 @@
+ver 2.5.2	2015-03-23	calvin
+		* Add function SetMaxRetryCount for setting max retry count
+		* Add function GetDoneQueueUnitRetryCount for getting retry count at last
+		* Add function SetAcceptEncoding for setting http accept-encoding
+		* Add function SetTransferEncoding for setting http transfer-encoding
+		* Add libcurl's DNS Cache
+		* Swap HtmlLinkParser and pfuncResponseBodyProc
+		* Improve the main process framework of events for performance
+
 ver 2.5.1	2015-03-16	calvin
 		* Solve a problem of compilation
 		* Add function 'MoveUnsuccessfulDoneQueueUnitsToRequestQueue','ResetDoneQueue' used to move back to request queue from done queue

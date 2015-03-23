@@ -28,6 +28,11 @@ int RequestHeaderProc( struct DoneQueueUnit *pdqu )
 funcResponseBodyProc ResponseBodyProc ;
 int ResponseBodyProc( struct DoneQueueUnit *pdqu )
 {
+	struct SimSpiderBuf	*buf = NULL ;
+	
+	buf = GetDoneQueueUnitBodyBuffer( pdqu ) ;
+	DebugLog( __FILE__ , __LINE__ , "HTTP BODY[%.*s]" , (int)(buf->len) , buf->base );
+	
 	printf( ">>> [%s]\n" , GetDoneQueueUnitUrl(pdqu) );
 
 	return 0;
@@ -39,7 +44,7 @@ void TravelDoneQueueProc( unsigned char *key , void *value , long value_len , vo
 	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)value ;
 	int			*p_travel_count = NULL ;
 	
-	printf( "[%5d] [%2ld] [%s] [%s]\n" , GetDoneQueueUnitStatus(pdqu) , GetDoneQueueUnitRecursiveDepth(pdqu) , GetDoneQueueUnitRefererUrl(pdqu) , GetDoneQueueUnitUrl(pdqu) );
+	printf( "[%5d] [%2ld] [%ld] [%s] [%s]\n" , GetDoneQueueUnitStatus(pdqu) , GetDoneQueueUnitRecursiveDepth(pdqu) , GetDoneQueueUnitRetryCount(pdqu) , GetDoneQueueUnitRefererUrl(pdqu) , GetDoneQueueUnitUrl(pdqu) );
 	
 	p_travel_count = GetSimSpiderPublicDataPtr( pdqu ) ;
 	(*p_travel_count)++;

@@ -1,3 +1,12 @@
+ver 2.5.2	2015-03-23	calvin
+		* 新增函数SetMaxRetryCount设置最大重试次数
+		* 新增函数GetDoneQueueUnitRetryCount得到最终重试次数
+		* 新增函数SetAcceptEncoding设置内容编码
+		* 新增函数SetTransferEncoding设置传输编码
+		* 加入libcurl的DNS缓冲以提高性能
+		* 更改了HtmlLinkParser和pfuncResponseBodyProc的次序
+		* 完善了主流程框架对事件的响应以提高性能
+
 ver 2.5.1	2015-03-16	calvin
 		* 解决了一个编译问题
 		* 新增函数MoveUnsuccessfulDoneQueueUnitsToRequestQueue,ResetDoneQueue用于移回完成队列中不成功的请求到请求队列
