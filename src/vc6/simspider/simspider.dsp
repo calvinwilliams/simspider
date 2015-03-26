@@ -94,7 +94,7 @@ SOURCE=..\..\HashX.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\HashX.h
+SOURCE="..\..\libsimspider-queue.c"
 # End Source File
 # Begin Source File
 
@@ -102,23 +102,11 @@ SOURCE=..\..\libsimspider.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\libsimspider.h
-# End Source File
-# Begin Source File
-
 SOURCE=..\..\LOGC.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\LOGC.h
-# End Source File
-# Begin Source File
-
 SOURCE=..\..\memque.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\..\memque.h
 # End Source File
 # Begin Source File
 
@@ -128,6 +116,26 @@ SOURCE=..\..\simspider.c
 # Begin Group "Header Files"
 
 # PROP Default_Filter "h;hpp;hxx;hm;inl"
+# Begin Source File
+
+SOURCE=..\..\HashX.h
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\libsimspider-queue.h"
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\libsimspider.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\LOGC.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\memque.h
+# End Source File
 # End Group
 # Begin Group "Resource Files"
 

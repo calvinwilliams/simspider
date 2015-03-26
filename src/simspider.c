@@ -1,5 +1,5 @@
 /*
- * simspider - Net Spider Engine
+ * simspider - Web Spider
  * author	: calvin
  * email	: calvinwilliams.c@gmail.com
  *
@@ -25,37 +25,28 @@ int RequestHeaderProc( struct DoneQueueUnit *pdqu )
 	return 0;
 }
 
-funcResponseBodyProc ResponseBodyProc ;
-int ResponseBodyProc( struct DoneQueueUnit *pdqu )
+funcFinishTaskProc FinishTaskProc ;
+int FinishTaskProc( struct DoneQueueUnit *pdqu )
 {
 	struct SimSpiderBuf	*buf = NULL ;
+	int			*p_count = NULL ;
 	
-	buf = GetDoneQueueUnitBodyBuffer( pdqu ) ;
-	DebugLog( __FILE__ , __LINE__ , "HTTP BODY[%.*s]" , (int)(buf->len) , buf->base );
+	buf = GetDoneQueueUnitBodyBuffer(pdqu) ;
+	DebugLog( __FILE__ , __LINE__ , "[%s] HTTP BODY [%.*s]" , GetDoneQueueUnitUrl(pdqu) , (int)(buf->len) , buf->base );
 	
-	printf( ">>> [%s]\n" , GetDoneQueueUnitUrl(pdqu) );
-
+	printf( ">>> [%3d] [%2ld] [%2ld] [%s] [%s]\n" , GetDoneQueueUnitStatus(pdqu) , GetDoneQueueUnitRecursiveDepth(pdqu) , GetDoneQueueUnitRetryCount(pdqu)
+		 , GetDoneQueueUnitRefererUrl(pdqu) , GetDoneQueueUnitUrl(pdqu) );
+	
+	p_count = GetSimSpiderPublicData( GetSimSpiderEnv(pdqu) ) ;
+	(*p_count)++;
+	
 	return 0;
-}
-
-funcTravelDoneQueueProc TravelDoneQueueProc ;
-void TravelDoneQueueProc( unsigned char *key , void *value , long value_len , void *pv )
-{
-	struct DoneQueueUnit	*pdqu = (struct DoneQueueUnit *)value ;
-	int			*p_travel_count = NULL ;
-	
-	printf( "[%5d] [%2ld] [%ld] [%s] [%s]\n" , GetDoneQueueUnitStatus(pdqu) , GetDoneQueueUnitRecursiveDepth(pdqu) , GetDoneQueueUnitRetryCount(pdqu) , GetDoneQueueUnitRefererUrl(pdqu) , GetDoneQueueUnitUrl(pdqu) );
-	
-	p_travel_count = GetSimSpiderPublicDataPtr( pdqu ) ;
-	(*p_travel_count)++;
-	
-	return;
 }
 
 int simspider( char *url , long max_concurrent_count )
 {
 	struct SimSpiderEnv	*penv = NULL ;
-	int			travel_count ;
+	int			count ;
 	
 	int			nret = 0 ;
 	
@@ -70,17 +61,16 @@ int simspider( char *url , long max_concurrent_count )
 	SetCertificateFilename( penv , "server.crt" );
 	SetMaxConcurrentCount( penv , max_concurrent_count );
 	
-	travel_count = 0 ;
-	SetSimSpiderPublicDataPtr( penv , (void*) & travel_count );
+	count = 0 ;
+	SetSimSpiderPublicData( penv , (void*) & count );
 	SetRequestHeaderProc( penv , & RequestHeaderProc );
-	SetResponseBodyProc( penv , & ResponseBodyProc );
-	SetTravelDoneQueueProc( penv , & TravelDoneQueueProc );
+	SetFinishTaskProc( penv , & FinishTaskProc );
 	
 	nret = SimSpiderGo( penv , "" , url ) ;
 	
 	CleanSimSpiderEnv( & penv );
 	
-	printf( "Total [%d] urls\n" , travel_count );
+	printf( "Total [%d]urls\n" , count );
 	
 	return 0;
 }

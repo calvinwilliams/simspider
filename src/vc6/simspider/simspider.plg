@@ -3,29 +3,89 @@
 <pre>
 <h1>Build Log</h1>
 <h3>
+--------------------Configuration: libsimspider - Win32 Debug--------------------
+</h3>
+<h3>Command Lines</h3>
+Creating temporary file "C:\DOCUME~1\calvin\LOCALS~1\Temp\RSPF4.tmp" with contents
+[
+/nologo /MDd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "LIBSIMSPIDER_EXPORTS" /Fp"Debug/libsimspider.pch" /YX /Fo"Debug/" /Fd"Debug/" /FD /GZ /c 
+"D:\Work\gitfiles\oschina.net\simspider\src\HashX.c"
+"D:\Work\gitfiles\oschina.net\simspider\src\libsimspider.c"
+"D:\Work\gitfiles\oschina.net\simspider\src\LOGC.c"
+"D:\Work\gitfiles\oschina.net\simspider\src\memque.c"
+"D:\Work\gitfiles\oschina.net\simspider\src\libsimspider-queue.c"
+]
+Creating command line "cl.exe @C:\DOCUME~1\calvin\LOCALS~1\Temp\RSPF4.tmp" 
+Creating temporary file "C:\DOCUME~1\calvin\LOCALS~1\Temp\RSPF5.tmp" with contents
+[
+kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib iconv.lib libcurldll.a /nologo /dll /incremental:yes /pdb:"Debug/libsimspider.pdb" /debug /machine:I386 /out:"Debug/libsimspider.dll" /implib:"Debug/libsimspider.lib" /pdbtype:sept 
+.\Debug\HashX.obj
+.\Debug\libsimspider.obj
+.\Debug\LOGC.obj
+.\Debug\memque.obj
+".\Debug\libsimspider-queue.obj"
+]
+Creating command line "link.exe @C:\DOCUME~1\calvin\LOCALS~1\Temp\RSPF5.tmp"
+<h3>Output Window</h3>
+Compiling...
+HashX.c
+libsimspider.c
+LOGC.c
+memque.c
+libsimspider-queue.c
+Linking...
+   Creating library Debug/libsimspider.lib and object Debug/libsimspider.exp
+Creating temporary file "C:\DOCUME~1\calvin\LOCALS~1\Temp\RSPF9.bat" with contents
+[
+@echo off
+mkdir "%ProgramFiles%\simspider"
+mkdir "%ProgramFiles%\simspider\include"
+copy ..\..\libsimspider.h "%ProgramFiles%\simspider\include\"
+mkdir "%ProgramFiles%\simspider\lib"
+copy Debug\libsimspider.lib "%ProgramFiles%\simspider\lib\"
+mkdir "%ProgramFiles%\simspider\bin"
+copy Debug\libsimspider.dll "%ProgramFiles%\simspider\bin\"
+]
+Creating command line "C:\DOCUME~1\calvin\LOCALS~1\Temp\RSPF9.bat"
+
+子目录或文件 C:\Program Files\simspider 已经存在。
+子目录或文件 C:\Program Files\simspider\include 已经存在。
+已复制         1 个文件。
+子目录或文件 C:\Program Files\simspider\lib 已经存在。
+已复制         1 个文件。
+子目录或文件 C:\Program Files\simspider\bin 已经存在。
+已复制         1 个文件。
+
+
+
+<h3>Results</h3>
+libsimspider.dll - 0 error(s), 0 warning(s)
+<h3>
 --------------------Configuration: simspider - Win32 Debug--------------------
 </h3>
 <h3>Command Lines</h3>
-Creating temporary file "C:\DOCUME~1\calvin\LOCALS~1\Temp\RSP1F2.tmp" with contents
+Creating temporary file "C:\DOCUME~1\calvin\LOCALS~1\Temp\RSPFA.tmp" with contents
 [
 /nologo /MLd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"Debug/simspider.pch" /YX /Fo"Debug/" /Fd"Debug/" /FD /GZ /c 
-"D:\Work\C Projects\simspider-2.5.2\src\HashX.c"
-"D:\Work\C Projects\simspider-2.5.2\src\libsimspider.c"
-"D:\Work\C Projects\simspider-2.5.2\src\LOGC.c"
-"D:\Work\C Projects\simspider-2.5.2\src\memque.c"
-"D:\Work\C Projects\simspider-2.5.2\src\simspider.c"
+"D:\Work\gitfiles\oschina.net\simspider\src\HashX.c"
+"D:\Work\gitfiles\oschina.net\simspider\src\libsimspider.c"
+"D:\Work\gitfiles\oschina.net\simspider\src\LOGC.c"
+"D:\Work\gitfiles\oschina.net\simspider\src\memque.c"
+"D:\Work\gitfiles\oschina.net\simspider\src\simspider.c"
+"D:\Work\gitfiles\oschina.net\simspider\src\libsimspider-queue.c"
 ]
-Creating command line "cl.exe @C:\DOCUME~1\calvin\LOCALS~1\Temp\RSP1F2.tmp" 
-Creating temporary file "C:\DOCUME~1\calvin\LOCALS~1\Temp\RSP1F3.tmp" with contents
+Creating command line "cl.exe @C:\DOCUME~1\calvin\LOCALS~1\Temp\RSPFA.tmp" 
+Creating temporary file "C:\DOCUME~1\calvin\LOCALS~1\Temp\RSPFB.tmp" with contents
 [
 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib iconv.lib libcurldll.a /nologo /subsystem:console /incremental:yes /pdb:"Debug/simspider.pdb" /debug /machine:I386 /out:"Debug/simspider.exe" /pdbtype:sept 
-".\Debug\HashX.obj"
-".\Debug\libsimspider.obj"
-".\Debug\LOGC.obj"
-".\Debug\memque.obj"
-".\Debug\simspider.obj"
+.\Debug\HashX.obj
+.\Debug\libsimspider.obj
+.\Debug\LOGC.obj
+.\Debug\memque.obj
+.\Debug\simspider.obj
+".\Debug\libsimspider-queue.obj"
 ]
-Creating command line "link.exe @C:\DOCUME~1\calvin\LOCALS~1\Temp\RSP1F3.tmp"
+Creating command line "link.exe @C:\DOCUME~1\calvin\LOCALS~1\Temp\RSPFB.tmp"
 <h3>Output Window</h3>
 Compiling...
 HashX.c
@@ -33,16 +93,17 @@ libsimspider.c
 LOGC.c
 memque.c
 simspider.c
+libsimspider-queue.c
 Linking...
    Creating library Debug/simspider.lib and object Debug/simspider.exp
-Creating temporary file "C:\DOCUME~1\calvin\LOCALS~1\Temp\RSP1F7.bat" with contents
+Creating temporary file "C:\DOCUME~1\calvin\LOCALS~1\Temp\RSPFF.bat" with contents
 [
 @echo off
 mkdir "%ProgramFiles%\simspider"
 mkdir "%ProgramFiles%\simspider\bin"
 copy Debug\simspider.exe "%ProgramFiles%\simspider\bin\"
 ]
-Creating command line "C:\DOCUME~1\calvin\LOCALS~1\Temp\RSP1F7.bat"
+Creating command line "C:\DOCUME~1\calvin\LOCALS~1\Temp\RSPFF.bat"
 
 子目录或文件 C:\Program Files\simspider 已经存在。
 子目录或文件 C:\Program Files\simspider\bin 已经存在。

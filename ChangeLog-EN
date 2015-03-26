@@ -1,3 +1,11 @@
+ver 2.6.0	2015-03-26	calvin
+		* depart request queue and done queue implemention for default
+		* Remove callback function funcTravelDoneQueueProc
+
+ver 2.5.3	2015-03-24	calvin
+		* Fixed a problem about not support CURLOPT_ACCEPT_ENCODING and CURLOPT_TRANSFER_ENCODING on low-version libcurl by use condition macro
+		* Fixed a bug in function ResetSimSpiderEnv with multiplexing concurrency
+
 ver 2.5.2	2015-03-23	calvin
 		* Add function SetMaxRetryCount for setting max retry count
 		* Add function GetDoneQueueUnitRetryCount for getting retry count at last

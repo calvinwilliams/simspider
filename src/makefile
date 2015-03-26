@@ -8,10 +8,11 @@
 ###### 源文件配置区
 #@ c_FILE
 c_FILE		=	\
-			libsimspider.c \
 			memque.c \
 			HashX.c \
 			LOGC.c \
+			libsimspider.c \
+			libsimspider-queue.c \
 
 c_FILE2		=	\
 			simspider.c \
