@@ -16,7 +16,7 @@ int ResetRequestQueueProc_DEFAULT( struct SimSpiderEnv *penv )
 }
 
 funcResizeRequestQueueProc ResizeRequestQueueProc_DEFAULT ;
-int ResizeRequestQueueProc_DEFAULT( struct SimSpiderEnv *penv , long p )
+int ResizeRequestQueueProc_DEFAULT( struct SimSpiderEnv *penv , long new_size )
 {
 	struct MemoryQueue	*pmq = NULL ;
 	
@@ -32,7 +32,7 @@ int ResizeRequestQueueProc_DEFAULT( struct SimSpiderEnv *penv , long p )
 	}
 	
 	pmq = NULL ;
-	nret = CreateMemoryQueue( & pmq , p , -1 , -1 ) ;
+	nret = CreateMemoryQueue( & pmq , new_size , -1 , -1 ) ;
 	if( nret )
 	{
 		ErrorLog( __FILE__ , __LINE__ , "CreateMemoryQueue failed[%d] errno[%d]" , nret , errno );
@@ -63,32 +63,6 @@ int PushRequestQueueUnitProc_DEFAULT( struct SimSpiderEnv *penv , char *url )
 	return 0;
 }
 
-static funcPeekRequestQueueUnitProc PeekRequestQueueUnitProc_DEFAULT ;
-int PeekRequestQueueUnitProc_DEFAULT( struct SimSpiderEnv *penv , char url[SIMSPIDER_MAXLEN_URL+1] )
-{
-	struct QueueBlock	*pqb = NULL ;
-	
-	int			nret = 0 ;
-	
-	nret = TravelQueueBlockByOrder( GetRequestQueueHandler(penv) , & pqb ) ;
-	if( nret == MEMQUEUE_WARN_NO_BLOCK )
-	{
-		return 1;
-	}
-	else if( nret < 0 )
-	{
-		ErrorLog( __FILE__ , __LINE__ , "TravelQueueBlockByOrder failed[%d] errno[%d]" , nret , errno );
-		return SIMSPIDER_ERROR_INTERNAL;
-	}
-	else
-	{
-		strcpy( url , (char*)pqb + sizeof(struct QueueBlock) );
-		DebugLog( __FILE__ , __LINE__ , "TravelQueueBlockByOrder[%s] ok" , url );
-	}
-	
-	return 0;
-}
-
 static funcPopupRequestQueueUnitProc PopupRequestQueueUnitProc_DEFAULT ;
 int PopupRequestQueueUnitProc_DEFAULT( struct SimSpiderEnv *penv , char url[SIMSPIDER_MAXLEN_URL+1] )
 {
@@ -97,16 +71,23 @@ int PopupRequestQueueUnitProc_DEFAULT( struct SimSpiderEnv *penv , char url[SIMS
 	int			nret = 0 ;
 	
 	nret = TravelQueueBlockByOrder( GetRequestQueueHandler(penv) , & pqb ) ;
-	if( nret < 0 )
+	if( nret == MEMQUEUE_WARN_NO_BLOCK )
+	{
+		DebugLog( __FILE__ , __LINE__ , "TravelQueueBlockByOrder ok , but no data" );
+		return SIMSPIDER_INFO_NO_TASK_IN_REQUEST_QUEUE;
+	}
+	else if( nret < 0 )
 	{
 		ErrorLog( __FILE__ , __LINE__ , "TravelQueueBlockByOrder failed[%d] errno[%d]" , nret , errno );
-		return SIMSPIDER_ERROR_INTERNAL;
+		return SIMSPIDER_ERROR_LIB_MEMQUEUE;
 	}
-	
-	strcpy( url , (char*)pqb + sizeof(struct QueueBlock) );
-	
-	RemoveQueueBlock( GetRequestQueueHandler(penv) , pqb );
-	DebugLog( __FILE__ , __LINE__ , "RemoveQueueBlock[%s] ok" , url );
+	else
+	{
+		strcpy( url , (char*)pqb + sizeof(struct QueueBlock) );
+		
+		RemoveQueueBlock( GetRequestQueueHandler(penv) , pqb );
+		DebugLog( __FILE__ , __LINE__ , "RemoveQueueBlock[%s] ok" , url );
+	}
 	
 	return 0;
 }
@@ -123,6 +104,12 @@ int ResetDoneQueueProc_DEFAULT( struct SimSpiderEnv *penv )
 	return 0;
 }
 
+static funcResizeDoneQueueProc ResizeDoneQueueProc_DEFAULT ;
+int ResizeDoneQueueProc_DEFAULT( struct SimSpiderEnv *penv , long new_size )
+{
+	return 0;
+}
+
 static funcQueryDoneQueueUnitProc QueryDoneQueueUnitProc_DEFAULT ;
 int QueryDoneQueueUnitProc_DEFAULT( struct SimSpiderEnv *penv , char url[SIMSPIDER_MAXLEN_URL+1] , struct DoneQueueUnit *pdqu , int SizeOfDoneQueueUnit )
 {
@@ -133,7 +120,7 @@ int QueryDoneQueueUnitProc_DEFAULT( struct SimSpiderEnv *penv , char url[SIMSPID
 	nret = GetHashItemPtr( GetDoneQueueHandler(penv) , (unsigned char *) url , & value , NULL ) ;
 	if( nret == HASH_RETCODE_ERROR_KEY_NOT_EXIST )
 	{
-		return 1;
+		return SIMSPIDER_INFO_NO_TASK_IN_DONE_QUEUE;
 	}
 	else if( nret < 0 )
 	{
@@ -164,26 +151,38 @@ int AddDoneQueueUnitProc_DEFAULT( struct SimSpiderEnv *penv , char *referer_url 
 	
 	int			nret = 0 ;
 	
-	pdqu = AllocDoneQueueUnit( penv , referer_url , url , recursive_depth ) ;
-	if( pdqu == NULL )
+	nret = QueryDoneQueueUnitProc_DEFAULT( penv , url , NULL , 0 ) ;
+	if( nret == SIMSPIDER_INFO_NO_TASK_IN_DONE_QUEUE )
 	{
-		ErrorLog( __FILE__ , __LINE__ , "AllocDoneQueueUnit failed errno[%d]" , errno );
-		return SIMSPIDER_ERROR_ALLOC;
+		pdqu = AllocDoneQueueUnit( penv , referer_url , url , recursive_depth ) ;
+		if( pdqu == NULL )
+		{
+			ErrorLog( __FILE__ , __LINE__ , "AllocDoneQueueUnit failed errno[%d]" , errno );
+			return SIMSPIDER_ERROR_LIB_HASHX;
+		}
+		
+		nret = PutHashItem( GetDoneQueueHandler(penv) , (unsigned char *) url , (void *) pdqu , SizeOfDoneQueueUnit , & FreeeDoneQueueUnit , HASH_PUTMODE_ADD ) ;
+		if( nret )
+		{
+			ErrorLog( __FILE__ , __LINE__ , "PutHashItem failed[%d] errno[%d]" , nret , errno );
+			FreeeDoneQueueUnit( pdqu );
+			return SIMSPIDER_ERROR_LIB_HASHX;
+		}
+		else
+		{
+			DebugLog( __FILE__ , __LINE__ , "PutHashItem[%s] ok" , url );
+		}
+		
+		return SIMSPIDER_INFO_ADD_TASK_IN_DONE_QUEUE;
 	}
-	
-	nret = PutHashItem( GetDoneQueueHandler(penv) , (unsigned char *) url , (void *) pdqu , SizeOfDoneQueueUnit , & FreeeDoneQueueUnit , HASH_PUTMODE_ADD ) ;
-	if( nret )
+	else if( nret )
 	{
-		ErrorLog( __FILE__ , __LINE__ , "PutHashItem failed[%d] errno[%d]" , nret , errno );
-		FreeeDoneQueueUnit( pdqu );
 		return SIMSPIDER_ERROR_LIB_HASHX;
 	}
 	else
 	{
-		DebugLog( __FILE__ , __LINE__ , "PutHashItem[%s] ok" , url );
+		return 0;
 	}
-	
-	return 0;
 }
 
 static funcUpdateDoneQueueUnitProc UpdateDoneQueueUnitProc_DEFAULT ;
@@ -224,7 +223,6 @@ int BindDefaultRequestQueueHandler( struct SimSpiderEnv *penv )
 	SetResetRequestQueueProc( penv , & ResetRequestQueueProc_DEFAULT );
 	SetResizeRequestQueueProc( penv , & ResizeRequestQueueProc_DEFAULT );
 	SetPushRequestQueueUnitProc( penv , & PushRequestQueueUnitProc_DEFAULT );
-	SetPeekRequestQueueUnitProc( penv , & PeekRequestQueueUnitProc_DEFAULT );
 	SetPopupRequestQueueUnitProc( penv , & PopupRequestQueueUnitProc_DEFAULT );
 	
 	return 0;
@@ -243,7 +241,6 @@ void UnbindDefaultRequestQueueHandler( struct SimSpiderEnv *penv )
 	SetResetRequestQueueProc( penv , NULL );
 	SetResizeRequestQueueProc( penv , NULL );
 	SetPushRequestQueueUnitProc( penv , NULL );
-	SetPeekRequestQueueUnitProc( penv , NULL );
 	SetPopupRequestQueueUnitProc( penv , NULL );
 	
 	return;
@@ -273,8 +270,9 @@ int BindDefaultDoneQueueHandler( struct SimSpiderEnv *penv )
 	SetDoneQueueHandler( penv , phc );
 	
 	SetResetDoneQueueProc( penv , & ResetDoneQueueProc_DEFAULT );
-	SetAddDoneQueueUnitProc( penv , & AddDoneQueueUnitProc_DEFAULT );
+	SetResizeDoneQueueProc( penv , & ResizeDoneQueueProc_DEFAULT );
 	SetQueryDoneQueueUnitProc( penv , & QueryDoneQueueUnitProc_DEFAULT );
+	SetAddDoneQueueUnitProc( penv , & AddDoneQueueUnitProc_DEFAULT );
 	SetUpdateDoneQueueUnitProc( penv , & UpdateDoneQueueUnitProc_DEFAULT );
 	
 	return 0;
@@ -292,8 +290,10 @@ void UnbindDefaultDoneQueueHandler( struct SimSpiderEnv *penv )
 	
 	SetRequestQueueHandler( penv , NULL );
 	
-	SetAddDoneQueueUnitProc( penv , NULL );
+	SetResetDoneQueueProc( penv , NULL );
+	SetResizeDoneQueueProc( penv , NULL );
 	SetQueryDoneQueueUnitProc( penv , NULL );
+	SetAddDoneQueueUnitProc( penv , NULL );
 	SetUpdateDoneQueueUnitProc( penv , NULL );
 	
 	return;

@@ -1,3 +1,6 @@
+ver 2.6.1	2015-03-27	calvin
+		* Fixed some bugs
+
 ver 2.6.0	2015-03-26	calvin
 		* depart request queue and done queue implemention for default
 		* Remove callback function funcTravelDoneQueueProc

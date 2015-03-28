@@ -25,14 +25,21 @@ int RequestHeaderProc( struct DoneQueueUnit *pdqu )
 	return 0;
 }
 
-funcFinishTaskProc FinishTaskProc ;
-int FinishTaskProc( struct DoneQueueUnit *pdqu )
+funcResponseBodyProc ResponseBodyProc ;
+int ResponseBodyProc( struct DoneQueueUnit *pdqu )
 {
 	struct SimSpiderBuf	*buf = NULL ;
-	int			*p_count = NULL ;
 	
 	buf = GetDoneQueueUnitBodyBuffer(pdqu) ;
 	DebugLog( __FILE__ , __LINE__ , "[%s] HTTP BODY [%.*s]" , GetDoneQueueUnitUrl(pdqu) , (int)(buf->len) , buf->base );
+	
+	return 0;
+}
+
+funcFinishTaskProc FinishTaskProc ;
+int FinishTaskProc( struct DoneQueueUnit *pdqu )
+{
+	int			*p_count = NULL ;
 	
 	printf( ">>> [%3d] [%2ld] [%2ld] [%s] [%s]\n" , GetDoneQueueUnitStatus(pdqu) , GetDoneQueueUnitRecursiveDepth(pdqu) , GetDoneQueueUnitRetryCount(pdqu)
 		 , GetDoneQueueUnitRefererUrl(pdqu) , GetDoneQueueUnitUrl(pdqu) );
@@ -60,10 +67,12 @@ int simspider( char *url , long max_concurrent_count )
 	ResizeRequestQueue( penv , 10*1024*1024 );
 	SetCertificateFilename( penv , "server.crt" );
 	SetMaxConcurrentCount( penv , max_concurrent_count );
+	SetMaxRetryCount( penv , 10 );
 	
 	count = 0 ;
 	SetSimSpiderPublicData( penv , (void*) & count );
 	SetRequestHeaderProc( penv , & RequestHeaderProc );
+	SetResponseBodyProc( penv , & ResponseBodyProc );
 	SetFinishTaskProc( penv , & FinishTaskProc );
 	
 	nret = SimSpiderGo( penv , "" , url ) ;
@@ -72,7 +81,7 @@ int simspider( char *url , long max_concurrent_count )
 	
 	printf( "Total [%d]urls\n" , count );
 	
-	return 0;
+	return -nret;
 }
 
 static void usage()
