@@ -1,3 +1,9 @@
+ver 2.6.2	2015-03-28	calvin
+		* 解决了一些问题
+		* 新增函数GetCurlStillRunning以便回调函数获取当前还在执行的请求数量
+		* 新增函数GetCurlFinishedCount以便一轮结束后获取已完成的请求数量
+		* 新增了一些返回值宏给回调函数使用
+
 ver 2.6.1	2015-03-27	calvin
 		* 解决了一些问题
 

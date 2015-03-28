@@ -50,7 +50,7 @@ int FinishTaskProc( struct DoneQueueUnit *pdqu )
 	return 0;
 }
 
-int simspider( char *url , long max_concurrent_count )
+static int simspider( char *url , long max_concurrent_count )
 {
 	struct SimSpiderEnv	*penv = NULL ;
 	int			count ;
@@ -63,6 +63,8 @@ int simspider( char *url , long max_concurrent_count )
 		printf( "InitSimSpiderEnv failed[%d]\n" , nret );
 		return 1;
 	}
+	
+	ResetSimSpiderEnv( penv );
 	
 	ResizeRequestQueue( penv , 10*1024*1024 );
 	SetCertificateFilename( penv , "server.crt" );
@@ -81,7 +83,7 @@ int simspider( char *url , long max_concurrent_count )
 	
 	printf( "Total [%d]urls\n" , count );
 	
-	return -nret;
+	return nret;
 }
 
 static void usage()

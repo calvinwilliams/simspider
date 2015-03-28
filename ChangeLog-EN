@@ -1,3 +1,9 @@
+ver 2.6.2	2015-03-28	calvin
+		* Fixed some bugs
+		* Add function GetCurlStillRunning for getting still running request count in callback function
+		* Add function GetCurlFinishedCount for getting finished count after call SimSpiderGo
+		* Add return MACRO to callback function
+
 ver 2.6.1	2015-03-27	calvin
 		* Fixed some bugs
 

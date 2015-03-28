@@ -122,7 +122,7 @@ int QueryDoneQueueUnitProc_DEFAULT( struct SimSpiderEnv *penv , char url[SIMSPID
 	{
 		return SIMSPIDER_INFO_NO_TASK_IN_DONE_QUEUE;
 	}
-	else if( nret < 0 )
+	else if( nret )
 	{
 		ErrorLog( __FILE__ , __LINE__ , "GetHashItemPtr[%s] failed[%d] errno[%d]" , url , nret , errno );
 		return SIMSPIDER_ERROR_LIB_HASHX;
@@ -151,37 +151,29 @@ int AddDoneQueueUnitProc_DEFAULT( struct SimSpiderEnv *penv , char *referer_url 
 	
 	int			nret = 0 ;
 	
-	nret = QueryDoneQueueUnitProc_DEFAULT( penv , url , NULL , 0 ) ;
-	if( nret == SIMSPIDER_INFO_NO_TASK_IN_DONE_QUEUE )
+	pdqu = AllocDoneQueueUnit( penv , referer_url , url , recursive_depth ) ;
+	if( pdqu == NULL )
 	{
-		pdqu = AllocDoneQueueUnit( penv , referer_url , url , recursive_depth ) ;
-		if( pdqu == NULL )
-		{
-			ErrorLog( __FILE__ , __LINE__ , "AllocDoneQueueUnit failed errno[%d]" , errno );
-			return SIMSPIDER_ERROR_LIB_HASHX;
-		}
-		
-		nret = PutHashItem( GetDoneQueueHandler(penv) , (unsigned char *) url , (void *) pdqu , SizeOfDoneQueueUnit , & FreeeDoneQueueUnit , HASH_PUTMODE_ADD ) ;
-		if( nret )
-		{
-			ErrorLog( __FILE__ , __LINE__ , "PutHashItem failed[%d] errno[%d]" , nret , errno );
-			FreeeDoneQueueUnit( pdqu );
-			return SIMSPIDER_ERROR_LIB_HASHX;
-		}
-		else
-		{
-			DebugLog( __FILE__ , __LINE__ , "PutHashItem[%s] ok" , url );
-		}
-		
-		return SIMSPIDER_INFO_ADD_TASK_IN_DONE_QUEUE;
+		ErrorLog( __FILE__ , __LINE__ , "AllocDoneQueueUnit failed errno[%d]" , errno );
+		return SIMSPIDER_ERROR_LIB_HASHX;
+	}
+	
+	nret = PutHashItem( GetDoneQueueHandler(penv) , (unsigned char *) url , (void *) pdqu , SizeOfDoneQueueUnit , & FreeeDoneQueueUnit , HASH_PUTMODE_ADD ) ;
+	if( nret == HASH_RETCODE_ERROR_KEY_EXIST )
+	{
+		InfoLog( __FILE__ , __LINE__ , "Task[%s] existed in done queue" , url );
+		return SIMSPIDER_INFO_TASK_EXISTED_IN_DONE_QUEUE;
 	}
 	else if( nret )
 	{
+		ErrorLog( __FILE__ , __LINE__ , "PutHashItem failed[%d] errno[%d]" , nret , errno );
+		FreeeDoneQueueUnit( pdqu );
 		return SIMSPIDER_ERROR_LIB_HASHX;
 	}
 	else
 	{
-		return 0;
+		DebugLog( __FILE__ , __LINE__ , "PutHashItem[%s] ok" , url );
+		return SIMSPIDER_INFO_ADD_TASK_IN_DONE_QUEUE;
 	}
 }
 
@@ -193,7 +185,7 @@ int UpdateDoneQueueUnitProc_DEFAULT( struct SimSpiderEnv *penv , struct DoneQueu
 	int		nret = 0 ;
 	
 	nret = GetHashItemPtr( GetDoneQueueHandler(penv) , (unsigned char *)GetDoneQueueUnitUrl(pdqu) , & value , NULL ) ;
-	if( nret < 0 )
+	if( nret )
 	{
 		ErrorLog( __FILE__ , __LINE__ , "GetHashItemPtr[%s] failed[%d] errno[%d]" , GetDoneQueueUnitUrl(pdqu) , nret , errno );
 		return SIMSPIDER_ERROR_LIB_HASHX;
