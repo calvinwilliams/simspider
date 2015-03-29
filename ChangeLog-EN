@@ -1,3 +1,7 @@
+ver 2.6.3	2015-03-29	calvin
+		* Add callback function funcBeginTaskProc and SetBeginTaskProc for setting , add return MACRO SIMSPIDER_INFO_IGNORE_THIS_TASK for ignore the URL
+		* Modify some param type 'long' to 'int'
+
 ver 2.6.2	2015-03-28	calvin
 		* Fixed some bugs
 		* Add function GetCurlStillRunning for getting still running request count in callback function

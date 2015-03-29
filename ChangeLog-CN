@@ -1,3 +1,7 @@
+ver 2.6.3	2015-03-29	calvin
+		* 新增回调函数funcBeginTaskProc以及设置函数SetBeginTaskProc，新增返回值宏SIMSPIDER_INFO_IGNORE_THIS_TASK配合跳过当前URL
+		* 一些long类型参数改成int类型
+
 ver 2.6.2	2015-03-28	calvin
 		* 解决了一些问题
 		* 新增函数GetCurlStillRunning以便回调函数获取当前还在执行的请求数量

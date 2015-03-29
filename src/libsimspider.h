@@ -93,6 +93,7 @@ extern char    *__SIMSPIDER_VERSION ;
 #define SIMSPIDER_INFO_NO_TASK_IN_DONE_QUEUE		22
 #define SIMSPIDER_INFO_ADD_TASK_IN_DONE_QUEUE		23
 #define SIMSPIDER_INFO_TASK_EXISTED_IN_DONE_QUEUE	-31
+#define SIMSPIDER_INFO_IGNORE_THIS_TASK			41
 #define SIMSPIDER_ERROR_LIB_MEMQUEUE			-1000
 #define SIMSPIDER_ERROR_LIB_HASHX			-2000
 #define SIMSPIDER_ERROR_LIB_LOGC			-3000
@@ -126,27 +127,29 @@ _WINDLL_FUNC void SetValidFileExtnameSet( struct SimSpiderEnv *penv , char *vali
 _WINDLL_FUNC void SetValidHtmlFileExtnameSet( struct SimSpiderEnv *penv , char *valid_html_file_extname_set );
 _WINDLL_FUNC void AllowEmptyFileExtname( struct SimSpiderEnv *penv , int allow_empty_file_extname );
 _WINDLL_FUNC void AllowRunOutofWebsite( struct SimSpiderEnv *penv , int allow_runoutof_website );
-_WINDLL_FUNC void SetMaxRecursiveDepth( struct SimSpiderEnv *penv , long max_recursive_depth );
+_WINDLL_FUNC void SetMaxRecursiveDepth( struct SimSpiderEnv *penv , int max_recursive_depth );
 _WINDLL_FUNC void SetCertificateFilename( struct SimSpiderEnv *penv , char *cert_pathfilename_format , ... );
-_WINDLL_FUNC void SetRequestDelay( struct SimSpiderEnv *penv , long seconds );
-_WINDLL_FUNC void SetMaxConcurrentCount( struct SimSpiderEnv *penv , long max_concurrent_count );
-_WINDLL_FUNC void SetMaxRetryCount( struct SimSpiderEnv *penv , long retry_count );
+_WINDLL_FUNC void SetRequestDelay( struct SimSpiderEnv *penv , int seconds );
+_WINDLL_FUNC void SetMaxConcurrentCount( struct SimSpiderEnv *penv , int max_concurrent_count );
+_WINDLL_FUNC void SetMaxRetryCount( struct SimSpiderEnv *penv , int retry_count );
 _WINDLL_FUNC void SetAcceptEncoding( struct SimSpiderEnv *penv , char *accept_encoding );
 _WINDLL_FUNC void SetTransferEncoding( struct SimSpiderEnv *penv , char *transfer_encoding );
 _WINDLL_FUNC void EnableHtmlLinkerParser( struct SimSpiderEnv *penv , int enable );
 _WINDLL_FUNC int GetCurlStillRunning( struct SimSpiderEnv *penv );
 _WINDLL_FUNC int GetCurlFinishedCount( struct SimSpiderEnv *penv );
 
-_WINDLL_FUNC int AppendRequestQueue( struct SimSpiderEnv *penv , char *referer_url , char *url , long depth );
+_WINDLL_FUNC int AppendRequestQueue( struct SimSpiderEnv *penv , char *referer_url , char *url , int depth );
 
 _WINDLL_FUNC int SimSpiderGo( struct SimSpiderEnv *penv , char *referer_url , char *url );
 
+typedef int funcBeginTaskProc( struct DoneQueueUnit *pdqu );
 typedef int funcRequestHeaderProc( struct DoneQueueUnit *pdqu );
 typedef int funcRequestBodyProc( struct DoneQueueUnit *pdqu );
 typedef int funcResponseHeaderProc( struct DoneQueueUnit *pdqu );
 typedef int funcResponseBodyProc( struct DoneQueueUnit *pdqu );
 typedef int funcFinishTaskProc( struct DoneQueueUnit *pdqu );
 
+_WINDLL_FUNC void SetBeginTaskProc( struct SimSpiderEnv *penv , funcBeginTaskProc *pfuncBeginTaskProc );
 _WINDLL_FUNC void SetRequestHeaderProc( struct SimSpiderEnv *penv , funcRequestHeaderProc *pfuncRequestHeaderProc );
 _WINDLL_FUNC void SetRequestBodyProc( struct SimSpiderEnv *penv , funcRequestHeaderProc *pfuncRequestBodyProc );
 _WINDLL_FUNC void SetResponseHeaderProc( struct SimSpiderEnv *penv , funcResponseHeaderProc *pfuncResponseHeaderProc );
@@ -161,10 +164,10 @@ _WINDLL_FUNC void FreeCurlList3Later( struct DoneQueueUnit *pdqu , struct curl_s
 
 _WINDLL_FUNC char *GetDoneQueueUnitRefererUrl( struct DoneQueueUnit *pdqu );
 _WINDLL_FUNC char *GetDoneQueueUnitUrl( struct DoneQueueUnit *pdqu );
-_WINDLL_FUNC long GetDoneQueueUnitRecursiveDepth( struct DoneQueueUnit *pdqu );
-_WINDLL_FUNC void SetDoneQueueUnitRecursiveDepth( struct DoneQueueUnit *pdqu , long recursive_depth );
-_WINDLL_FUNC long GetDoneQueueUnitRetryCount( struct DoneQueueUnit *pdqu );
-_WINDLL_FUNC void SetDoneQueueUnitRetryCount( struct DoneQueueUnit *pdqu , long retry_count );
+_WINDLL_FUNC int GetDoneQueueUnitRecursiveDepth( struct DoneQueueUnit *pdqu );
+_WINDLL_FUNC void SetDoneQueueUnitRecursiveDepth( struct DoneQueueUnit *pdqu , int recursive_depth );
+_WINDLL_FUNC int GetDoneQueueUnitRetryCount( struct DoneQueueUnit *pdqu );
+_WINDLL_FUNC void SetDoneQueueUnitRetryCount( struct DoneQueueUnit *pdqu , int retry_count );
 _WINDLL_FUNC int GetDoneQueueUnitStatus( struct DoneQueueUnit *pdqu );
 _WINDLL_FUNC void SetDoneQueueUnitStatus( struct DoneQueueUnit *pdqu , int status );
 _WINDLL_FUNC CURL *GetDoneQueueUnitCurl( struct DoneQueueUnit *pdqu );
@@ -181,7 +184,7 @@ _WINDLL_FUNC void *GetSimSpiderPublicData( struct SimSpiderEnv *penv );
 _WINDLL_FUNC void SetSimSpiderPrivateData( struct DoneQueueUnit *pdqu , void *private_data );
 _WINDLL_FUNC void *GetSimSpiderPrivateData( struct DoneQueueUnit *pdqu );
 
-_WINDLL_FUNC struct DoneQueueUnit *AllocDoneQueueUnit( struct SimSpiderEnv *penv , char *referer_url , char *url , long recursive_depth );
+_WINDLL_FUNC struct DoneQueueUnit *AllocDoneQueueUnit( struct SimSpiderEnv *penv , char *referer_url , char *url , int recursive_depth );
 _WINDLL_FUNC void FreeDoneQueueUnit( void *pv );
 
 _WINDLL_FUNC void SetRequestQueueHandler( struct SimSpiderEnv *penv , void *request_queue_env );
@@ -203,7 +206,7 @@ _WINDLL_FUNC void *GetDoneQueueHandler( struct SimSpiderEnv *penv );
 typedef int funcResetDoneQueueProc( struct SimSpiderEnv *penv );
 typedef int funcResizeDoneQueueProc( struct SimSpiderEnv *penv , long new_size );
 typedef int funcQueryDoneQueueUnitProc( struct SimSpiderEnv *penv , char url[SIMSPIDER_MAXLEN_URL+1] , struct DoneQueueUnit *pdqu , int SizeOfDoneQueueUnit );
-typedef int funcAddDoneQueueUnitProc( struct SimSpiderEnv *penv , char *referer_url , char *url , long recursive_depth , int SizeOfDoneQueueUnit );
+typedef int funcAddDoneQueueUnitProc( struct SimSpiderEnv *penv , char *referer_url , char *url , int recursive_depth , int SizeOfDoneQueueUnit );
 typedef int funcUpdateDoneQueueUnitProc( struct SimSpiderEnv *penv , struct DoneQueueUnit *pdqu , int SizeOfDoneQueueUnit );
 
 _WINDLL_FUNC void SetResetDoneQueueProc( struct SimSpiderEnv *penv , funcResetDoneQueueProc *pfuncResetDoneQueueProc );

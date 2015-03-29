@@ -41,7 +41,7 @@ int FinishTaskProc( struct DoneQueueUnit *pdqu )
 {
 	int			*p_count = NULL ;
 	
-	printf( ">>> [%3d] [%2ld] [%2ld] [%s] [%s]\n" , GetDoneQueueUnitStatus(pdqu) , GetDoneQueueUnitRecursiveDepth(pdqu) , GetDoneQueueUnitRetryCount(pdqu)
+	printf( ">>> [%3d] [%2d] [%2d] [%s] [%s]\n" , GetDoneQueueUnitStatus(pdqu) , GetDoneQueueUnitRecursiveDepth(pdqu) , GetDoneQueueUnitRetryCount(pdqu)
 		 , GetDoneQueueUnitRefererUrl(pdqu) , GetDoneQueueUnitUrl(pdqu) );
 	
 	p_count = GetSimSpiderPublicData( GetSimSpiderEnv(pdqu) ) ;
@@ -50,7 +50,7 @@ int FinishTaskProc( struct DoneQueueUnit *pdqu )
 	return 0;
 }
 
-static int simspider( char *url , long max_concurrent_count )
+static int simspider( char *url , int max_concurrent_count )
 {
 	struct SimSpiderEnv	*penv = NULL ;
 	int			count ;

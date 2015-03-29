@@ -145,7 +145,7 @@ static BOOL FreeeDoneQueueUnit( void *pv )
 }
 
 static funcAddDoneQueueUnitProc AddDoneQueueUnitProc_DEFAULT ;
-int AddDoneQueueUnitProc_DEFAULT( struct SimSpiderEnv *penv , char *referer_url , char *url , long recursive_depth , int SizeOfDoneQueueUnit )
+int AddDoneQueueUnitProc_DEFAULT( struct SimSpiderEnv *penv , char *referer_url , char *url , int recursive_depth , int SizeOfDoneQueueUnit )
 {
 	struct DoneQueueUnit	*pdqu = NULL ;
 	
