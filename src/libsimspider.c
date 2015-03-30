@@ -17,8 +17,8 @@
 #include "LOGC.h"
 #include "libsimspider.h"
 
-char	__SIMSPIDER_VERSION_2_6_3[] = "2.6.3" ;
-char	*__SIMSPIDER_VERSION = __SIMSPIDER_VERSION_2_6_3 ;
+char	__SIMSPIDER_VERSION_2_6_4[] = "2.6.4" ;
+char	*__SIMSPIDER_VERSION = __SIMSPIDER_VERSION_2_6_4 ;
 
 struct SimSpiderEnv
 {
