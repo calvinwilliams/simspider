@@ -17,8 +17,8 @@
 #include "LOGC.h"
 #include "libsimspider.h"
 
-char	__SIMSPIDER_VERSION_2_6_4[] = "2.6.4" ;
-char	*__SIMSPIDER_VERSION = __SIMSPIDER_VERSION_2_6_4 ;
+char	__SIMSPIDER_VERSION_2_6_5[] = "2.6.5" ;
+char	*__SIMSPIDER_VERSION = __SIMSPIDER_VERSION_2_6_5 ;
 
 struct SimSpiderEnv
 {
@@ -67,8 +67,8 @@ struct SimSpiderEnv
 
 struct DoneQueueUnit
 {
-	char				referer_url[ SIMSPIDER_MAXLEN_URL + 1 ] ;
-	char				url[ SIMSPIDER_MAXLEN_URL + 1 ] ;
+	char				*referer_url ;
+	char				*url ;
 	int				recursive_depth ;
 	
 	int				retry_count ;
@@ -91,6 +91,18 @@ struct DoneQueueUnit
 
 static void CleanDoneQueueUnit( struct DoneQueueUnit *pdqu )
 {
+	if( pdqu->referer_url )
+	{
+		free( pdqu->referer_url );
+		pdqu->referer_url = NULL ;
+	}
+	
+	if( pdqu->url )
+	{
+		free( pdqu->url );
+		pdqu->url = NULL ;
+	}
+	
 	if( pdqu->header.base )
 	{
 		free( pdqu->header.base );
@@ -147,8 +159,6 @@ void FreeDoneQueueUnit( void *pv )
 struct DoneQueueUnit *AllocDoneQueueUnit( struct SimSpiderEnv *penv , char *referer_url , char *url , int recursive_depth )
 {
 	struct DoneQueueUnit	*pdqu = NULL ;
-	int			header_bufsize = 4096 + 1 ;
-	int			body_bufsize = 4096 + 1 ;
 	
 	pdqu = (struct DoneQueueUnit *)malloc( sizeof(struct DoneQueueUnit) ) ;
 	if( pdqu == NULL )
@@ -157,36 +167,27 @@ struct DoneQueueUnit *AllocDoneQueueUnit( struct SimSpiderEnv *penv , char *refe
 	
 	if( referer_url )
 	{
-		strncpy( pdqu->referer_url , referer_url , sizeof(pdqu->referer_url)-1 ) ;
+		pdqu->referer_url = strdup( referer_url ) ;
+		if( pdqu->referer_url == NULL )
+		{
+			FreeDoneQueueUnit( pdqu );
+			return NULL;
+		}
 	}
+	
 	if( url )
 	{
-		strncpy( pdqu->url , url , sizeof(pdqu->url)-1 ) ;
+		pdqu->url = strdup( url ) ;
+		if( pdqu->url == NULL )
+		{
+			FreeDoneQueueUnit( pdqu );
+			return NULL;
+		}
 	}
 	
 	pdqu->status = 0 ;
 	pdqu->recursive_depth = recursive_depth ;
 	pdqu->retry_count = 0 ;
-	
-	pdqu->header.base = (char*)malloc( header_bufsize ) ;
-	if( pdqu->header.base == NULL )
-	{
-		FreeDoneQueueUnit( pdqu );
-		return NULL;
-	}
-	memset( pdqu->header.base , 0x00 , header_bufsize );
-	pdqu->header.bufsize = header_bufsize ;
-	pdqu->header.len = 0 ;
-	
-	pdqu->body.base = (char*)malloc( body_bufsize ) ;
-	if( pdqu->body.base == NULL )
-	{
-		FreeDoneQueueUnit( pdqu );
-		return NULL;
-	}
-	memset( pdqu->body.base , 0x00 , body_bufsize );
-	pdqu->body.bufsize = body_bufsize ;
-	pdqu->body.len = 0 ;
 	
 	return pdqu;
 }
@@ -196,9 +197,27 @@ char *GetDoneQueueUnitRefererUrl( struct DoneQueueUnit *pdqu )
 	return pdqu->referer_url;
 }
 
+int SetDoneQueueUnitRefererUrl( struct DoneQueueUnit *pdqu , char *referer_url )
+{
+	pdqu->referer_url = strdup( referer_url ) ;
+	if( pdqu->referer_url == NULL )
+		return SIMSPIDER_ERROR_ALLOC;
+	else
+		return 0;
+}
+
 char *GetDoneQueueUnitUrl( struct DoneQueueUnit *pdqu )
 {
 	return pdqu->url;
+}
+
+int SetDoneQueueUnitUrl( struct DoneQueueUnit *pdqu , char *url )
+{
+	pdqu->url = strdup( url ) ;
+	if( pdqu->url == NULL )
+		return SIMSPIDER_ERROR_ALLOC;
+	else
+		return 0;
 }
 
 int GetDoneQueueUnitRecursiveDepth( struct DoneQueueUnit *pdqu )
@@ -1304,6 +1323,20 @@ static int FetchTasksFromRequestQueue( struct SimSpiderEnv *penv , int *p_still_
 			return SIMSPIDER_ERROR_FUNCPROC_INTERRUPT;
 		}
 		
+		nret = ReallocHeaderBuffer( pdqu , 4096 + 1 ) ;
+		if( nret )
+		{
+			ErrorLog( __FILE__ , __LINE__ , "ReallocBodyBuffer failed[%d] errno[%d]" , nret , errno );
+			return nret;
+		}
+		
+		nret = ReallocBodyBuffer( pdqu , 4096 + 1 ) ;
+		if( nret )
+		{
+			ErrorLog( __FILE__ , __LINE__ , "ReallocBodyBuffer failed[%d] errno[%d]" , nret , errno );
+			return nret;
+		}
+		
 		pdqu->penv = penv ;
 		
 		if( penv->pfuncBeginTaskProc )
@@ -1312,7 +1345,8 @@ static int FetchTasksFromRequestQueue( struct SimSpiderEnv *penv , int *p_still_
 			if( nret )
 			{
 				pdqu->status = nret ;
-				nret = penv->pfuncUpdateDoneQueueUnitProc( penv , pdqu , sizeof(struct DoneQueueUnit) ) ;
+				CleanDoneQueueUnit( pdqu );
+				nret = penv->pfuncUpdateDoneQueueUnitProc( penv , url , pdqu , sizeof(struct DoneQueueUnit) ) ;
 				FreeDoneQueueUnit( pdqu );
 				if( nret == SIMSPIDER_INFO_IGNORE_THIS_TASK )
 				{
@@ -1340,13 +1374,14 @@ static int FetchTasksFromRequestQueue( struct SimSpiderEnv *penv , int *p_still_
 			{
 				ErrorLog( __FILE__ , __LINE__ , "curl_easy_init failed" );
 				pdqu->status = SIMSPIDER_ERROR_INTERNAL ;
-				nret = penv->pfuncUpdateDoneQueueUnitProc( penv , pdqu , sizeof(struct DoneQueueUnit) ) ;
+				CleanDoneQueueUnit( pdqu );
+				nret = penv->pfuncUpdateDoneQueueUnitProc( penv , url , pdqu , sizeof(struct DoneQueueUnit) ) ;
+				curl_easy_cleanup( pdqu->curl );
+				FreeDoneQueueUnit( pdqu );
 				if( nret )
 				{
 					ErrorLog( __FILE__ , __LINE__ , "pfuncUpdateDoneQueueUnitProc failed[%d]" , nret );
 				}
-				curl_easy_cleanup( pdqu->curl );
-				FreeDoneQueueUnit( pdqu );
 				return SIMSPIDER_ERROR_INTERNAL;
 			}
 			else
@@ -1409,13 +1444,14 @@ static int FetchTasksFromRequestQueue( struct SimSpiderEnv *penv , int *p_still_
 			{
 				ErrorLog( __FILE__ , __LINE__ , "curl_slist_append failed" );
 				pdqu->status = SIMSPIDER_ERROR_ALLOC ;
-				nret2 = penv->pfuncUpdateDoneQueueUnitProc( penv , pdqu , sizeof(struct DoneQueueUnit) ) ;
+				CleanDoneQueueUnit( pdqu );
+				nret2 = penv->pfuncUpdateDoneQueueUnitProc( penv , url , pdqu , sizeof(struct DoneQueueUnit) ) ;
+				curl_easy_cleanup( pdqu->curl );
+				FreeDoneQueueUnit( pdqu );
 				if( nret2 )
 				{
 					ErrorLog( __FILE__ , __LINE__ , "pfuncUpdateDoneQueueUnitProc failed[%d]" , nret2 );
 				}
-				curl_easy_cleanup( pdqu->curl );
-				FreeDoneQueueUnit( pdqu );
 				return SIMSPIDER_ERROR_ALLOC;
 			}
 		}
@@ -1426,13 +1462,14 @@ static int FetchTasksFromRequestQueue( struct SimSpiderEnv *penv , int *p_still_
 			if( nret )
 			{
 				pdqu->status = nret ;
-				nret2 = penv->pfuncUpdateDoneQueueUnitProc( penv , pdqu , sizeof(struct DoneQueueUnit) ) ;
+				CleanDoneQueueUnit( pdqu );
+				nret2 = penv->pfuncUpdateDoneQueueUnitProc( penv , url , pdqu , sizeof(struct DoneQueueUnit) ) ;
+				curl_easy_cleanup( pdqu->curl );
+				FreeDoneQueueUnit( pdqu );
 				if( nret2 )
 				{
 					ErrorLog( __FILE__ , __LINE__ , "pfuncUpdateDoneQueueUnitProc failed[%d]" , nret2 );
 				}
-				curl_easy_cleanup( pdqu->curl );
-				FreeDoneQueueUnit( pdqu );
 				return nret;
 			}
 		}
@@ -1474,13 +1511,14 @@ static int FetchTasksFromRequestQueue( struct SimSpiderEnv *penv , int *p_still_
 			if( nret )
 			{
 				pdqu->status = nret ;
-				nret2 = penv->pfuncUpdateDoneQueueUnitProc( penv , pdqu , sizeof(struct DoneQueueUnit) ) ;
+				CleanDoneQueueUnit( pdqu );
+				nret2 = penv->pfuncUpdateDoneQueueUnitProc( penv , url , pdqu , sizeof(struct DoneQueueUnit) ) ;
+				curl_easy_cleanup( pdqu->curl );
+				FreeDoneQueueUnit( pdqu );
 				if( nret2 )
 				{
 					ErrorLog( __FILE__ , __LINE__ , "pfuncUpdateDoneQueueUnitProc failed[%d]" , nret2 );
 				}
-				curl_easy_cleanup( pdqu->curl );
-				FreeDoneQueueUnit( pdqu );
 				return nret;
 			}
 		}
@@ -1505,7 +1543,6 @@ static int ProcessingTask( struct SimSpiderEnv *penv , struct DoneQueueUnit *pdq
 			pdqu->status = nret ;
 			if( nret == SIMSPIDER_ERROR_FUNCPROC_INTERRUPT )
 			{
-				penv->pfuncUpdateDoneQueueUnitProc( penv , pdqu , sizeof(struct DoneQueueUnit) );
 				return nret;
 			}
 		}
@@ -1520,7 +1557,6 @@ static int ProcessingTask( struct SimSpiderEnv *penv , struct DoneQueueUnit *pdq
 			pdqu->status = nret ;
 			if( nret == SIMSPIDER_ERROR_FUNCPROC_INTERRUPT )
 			{
-				penv->pfuncUpdateDoneQueueUnitProc( penv , pdqu , sizeof(struct DoneQueueUnit) );
 				return nret;
 			}
 		}
@@ -1561,6 +1597,8 @@ static int ProcessingTask( struct SimSpiderEnv *penv , struct DoneQueueUnit *pdq
 	
 static int FinishTask( struct SimSpiderEnv *penv , struct DoneQueueUnit *pdqu , CURL **pp_curl , int *p_still_running )
 {
+	char		url[ SIMSPIDER_MAXLEN_URL + 1 ] ;
+	
 	int		nret = 0 ;
 	
 	if( pdqu->status != 200 )
@@ -1598,16 +1636,6 @@ static int FinishTask( struct SimSpiderEnv *penv , struct DoneQueueUnit *pdqu , 
 		pdqu->post_url = NULL ;
 	}
 	
-	CleanDoneQueueUnit( pdqu );
-	
-	nret = penv->pfuncUpdateDoneQueueUnitProc( penv , pdqu , sizeof(struct DoneQueueUnit) ) ;
-	if( nret )
-	{
-		ErrorLog( __FILE__ , __LINE__ , "pfuncUpdateDoneQueueUnitProc failed[%d]" , nret );
-		FreeDoneQueueUnit( pdqu );
-		return nret;
-	}
-	
 	if( penv->pfuncFinishTaskProc )
 	{
 		nret = penv->pfuncFinishTaskProc( pdqu ) ;
@@ -1617,6 +1645,18 @@ static int FinishTask( struct SimSpiderEnv *penv , struct DoneQueueUnit *pdqu , 
 			FreeDoneQueueUnit( pdqu );
 			return SIMSPIDER_ERROR_FUNCPROC_INTERRUPT;
 		}
+	}
+	
+	strcpy( url , pdqu->url );
+	
+	CleanDoneQueueUnit( pdqu );
+	
+	nret = penv->pfuncUpdateDoneQueueUnitProc( penv , url , pdqu , sizeof(struct DoneQueueUnit) ) ;
+	if( nret )
+	{
+		ErrorLog( __FILE__ , __LINE__ , "pfuncUpdateDoneQueueUnitProc failed[%d]" , nret );
+		FreeDoneQueueUnit( pdqu );
+		return nret;
 	}
 	
 	FreeDoneQueueUnit( pdqu );

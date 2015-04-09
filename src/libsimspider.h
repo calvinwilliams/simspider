@@ -163,7 +163,9 @@ _WINDLL_FUNC void FreeCurlList2Later( struct DoneQueueUnit *pdqu , struct curl_s
 _WINDLL_FUNC void FreeCurlList3Later( struct DoneQueueUnit *pdqu , struct curl_slist *curllist3 );
 
 _WINDLL_FUNC char *GetDoneQueueUnitRefererUrl( struct DoneQueueUnit *pdqu );
+_WINDLL_FUNC int SetDoneQueueUnitRefererUrl( struct DoneQueueUnit *pdqu , char *referer_url );
 _WINDLL_FUNC char *GetDoneQueueUnitUrl( struct DoneQueueUnit *pdqu );
+_WINDLL_FUNC int SetDoneQueueUnitUrl( struct DoneQueueUnit *pdqu , char *url );
 _WINDLL_FUNC int GetDoneQueueUnitRecursiveDepth( struct DoneQueueUnit *pdqu );
 _WINDLL_FUNC void SetDoneQueueUnitRecursiveDepth( struct DoneQueueUnit *pdqu , int recursive_depth );
 _WINDLL_FUNC int GetDoneQueueUnitRetryCount( struct DoneQueueUnit *pdqu );
@@ -206,8 +208,8 @@ _WINDLL_FUNC void *GetDoneQueueHandler( struct SimSpiderEnv *penv );
 typedef int funcResetDoneQueueProc( struct SimSpiderEnv *penv );
 typedef int funcResizeDoneQueueProc( struct SimSpiderEnv *penv , long new_size );
 typedef int funcQueryDoneQueueUnitProc( struct SimSpiderEnv *penv , char url[SIMSPIDER_MAXLEN_URL+1] , struct DoneQueueUnit *pdqu , int SizeOfDoneQueueUnit );
-typedef int funcAddDoneQueueUnitProc( struct SimSpiderEnv *penv , char *referer_url , char *url , int recursive_depth , int SizeOfDoneQueueUnit );
-typedef int funcUpdateDoneQueueUnitProc( struct SimSpiderEnv *penv , struct DoneQueueUnit *pdqu , int SizeOfDoneQueueUnit );
+typedef int funcAddDoneQueueUnitProc( struct SimSpiderEnv *penv , char referer_url[SIMSPIDER_MAXLEN_URL+1] , char url[SIMSPIDER_MAXLEN_URL+1] , int recursive_depth , int SizeOfDoneQueueUnit );
+typedef int funcUpdateDoneQueueUnitProc( struct SimSpiderEnv *penv , char url[SIMSPIDER_MAXLEN_URL+1] , struct DoneQueueUnit *pdqu , int SizeOfDoneQueueUnit );
 
 _WINDLL_FUNC void SetResetDoneQueueProc( struct SimSpiderEnv *penv , funcResetDoneQueueProc *pfuncResetDoneQueueProc );
 _WINDLL_FUNC void SetResizeDoneQueueProc( struct SimSpiderEnv *penv , funcResizeDoneQueueProc *pfuncResizeDoneQueueProc );

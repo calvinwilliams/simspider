@@ -145,7 +145,7 @@ static BOOL FreeeDoneQueueUnit( void *pv )
 }
 
 static funcAddDoneQueueUnitProc AddDoneQueueUnitProc_DEFAULT ;
-int AddDoneQueueUnitProc_DEFAULT( struct SimSpiderEnv *penv , char *referer_url , char *url , int recursive_depth , int SizeOfDoneQueueUnit )
+int AddDoneQueueUnitProc_DEFAULT( struct SimSpiderEnv *penv , char referer_url[SIMSPIDER_MAXLEN_URL+1] , char url[SIMSPIDER_MAXLEN_URL+1] , int recursive_depth , int SizeOfDoneQueueUnit )
 {
 	struct DoneQueueUnit	*pdqu = NULL ;
 	
@@ -178,16 +178,16 @@ int AddDoneQueueUnitProc_DEFAULT( struct SimSpiderEnv *penv , char *referer_url 
 }
 
 static funcUpdateDoneQueueUnitProc UpdateDoneQueueUnitProc_DEFAULT ;
-int UpdateDoneQueueUnitProc_DEFAULT( struct SimSpiderEnv *penv , struct DoneQueueUnit *pdqu , int SizeOfDoneQueueUnit )
+int UpdateDoneQueueUnitProc_DEFAULT( struct SimSpiderEnv *penv , char url[SIMSPIDER_MAXLEN_URL+1] , struct DoneQueueUnit *pdqu , int SizeOfDoneQueueUnit )
 {
 	void		*value = NULL ;
 	
 	int		nret = 0 ;
 	
-	nret = GetHashItemPtr( GetDoneQueueHandler(penv) , (unsigned char *)GetDoneQueueUnitUrl(pdqu) , & value , NULL ) ;
+	nret = GetHashItemPtr( GetDoneQueueHandler(penv) , (unsigned char *) url , & value , NULL ) ;
 	if( nret )
 	{
-		ErrorLog( __FILE__ , __LINE__ , "GetHashItemPtr[%s] failed[%d] errno[%d]" , GetDoneQueueUnitUrl(pdqu) , nret , errno );
+		ErrorLog( __FILE__ , __LINE__ , "GetHashItemPtr[%s] failed[%d] errno[%d]" , url , nret , errno );
 		return SIMSPIDER_ERROR_LIB_HASHX;
 	}
 	else

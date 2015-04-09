@@ -56,3 +56,6 @@ libsimspider.so		:	$(c_FILE_o)
 simspider		:	$(c_FILE2_o)
 	$(CC) $(ESOFLAGS) -o $@ $(c_FILE2_o) $(LFLAGS) -lsimspider
 
+aaa		:	aaa.o
+	$(CC) $(ESOFLAGS) -o $@ aaa.o $(LFLAGS) -lsimspider
+
