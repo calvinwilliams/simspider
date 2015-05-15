@@ -45,7 +45,8 @@ CLEAN_ADDITION	=	simspider.log
 #@ make_clean
 #@ make_install
 #@ make_install_BININST
-#@ make_install_DFTHDERINST
+#@ make_install_LIBINST
+#@ make_install_HDERINST
 
 include $(MKTPLDIR)/makeobj_$(MKTPLOS).inc
 

@@ -29,10 +29,11 @@ c_FILE_CLEAN	=	$(c_FILE_o) $(c_FILE2_o) $(c_FILE3_o) $(c_FILE4_o) $(c_FILE5_o)
 	$(CC) $(CFLAGS) -c $<
 
 c_FILE		=	\
-			libsimspider.c \
 			memque.c \
 			HashX.c \
 			LOGC.c \
+			libsimspider.c \
+			libsimspider-queue.c \
 
 c_FILE2		=	\
 			simspider.c \
@@ -103,16 +104,30 @@ ifneq ($(strip $(BININST)),)
 endif
 endif
 
-ifneq ($(strip $(DFTHDER)),)
-ifneq ($(strip $(DFTHDERINST)),)
-	@if [ ! -d "$(DFTHDERINST)" ] ; then \
-		echo $(MKDIR) $(DFTHDERINST) ; \
-		$(MKDIR) $(DFTHDERINST) ; \
+ifneq ($(strip $(LIB)),)
+ifneq ($(strip $(LIBINST)),)
+	@if [ ! -d "$(LIBINST)" ] ; then \
+		echo $(MKDIR) $(LIBINST) ; \
+		$(MKDIR) $(LIBINST) ; \
 	fi ; \
-	for FILE in `echo $(DFTHDER)` ; do \
-		echo $(CP) $$FILE $(DFTHDERINST)/ ; \
-		$(RM) $(DFTHDERINST)/$$FILE ; \
-		$(CP) $$FILE $(DFTHDERINST)/ ; \
+	for FILE in `echo $(LIB)` ; do \
+		echo $(CP) $$FILE $(LIBINST)/ ; \
+		$(RM) $(LIBINST)/$$FILE ; \
+		$(CP) $$FILE $(LIBINST)/ ; \
+	done
+endif
+endif
+
+ifneq ($(strip $(HDER)),)
+ifneq ($(strip $(HDERINST)),)
+	@if [ ! -d "$(HDERINST)" ] ; then \
+		echo $(MKDIR) $(HDERINST) ; \
+		$(MKDIR) $(HDERINST) ; \
+	fi ; \
+	for FILE in `echo $(HDER)` ; do \
+		echo $(CP) $$FILE $(HDERINST)/ ; \
+		$(RM) $(HDERINST)/$$FILE ; \
+		$(CP) $$FILE $(HDERINST)/ ; \
 	done
 endif
 endif

@@ -29,10 +29,11 @@ c_FILE_CLEAN	=	$(c_FILE_o) $(c_FILE2_o) $(c_FILE3_o) $(c_FILE4_o) $(c_FILE5_o)
 	$(CC) $(CFLAGS) -c $<
 
 c_FILE		=	\
-			libsimspider.c \
 			memque.c \
 			HashX.c \
 			LOGC.c \
+			libsimspider.c \
+			libsimspider-queue.c \
 
 c_FILE2		=	\
 			simspider.c \
@@ -91,13 +92,19 @@ ifneq ($(strip $(BININST)),)
 endif
 endif
 
-ifneq ($(strip $(DFTHDER)),)
-ifneq ($(strip $(DFTHDERINST)),)
-	-$(MKDIR) "$(DFTHDERINST)"
-	$(CP) $(DFTHDER) "$(DFTHDERINST)/"
+ifneq ($(strip $(LIB)),)
+ifneq ($(strip $(LIBINST)),)
+	-$(MKDIR) "$(LIBINST)"
+	$(CP) $(LIB) "$(LIBINST)/"
 endif
 endif
 
+ifneq ($(strip $(HDER)),)
+ifneq ($(strip $(HDERINST)),)
+	-$(MKDIR) "$(HDERINST)"
+	$(CP) $(HDER) "$(HDERINST)/"
+endif
+endif
 
 
 ###### 目标文件依赖关系
