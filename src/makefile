@@ -19,11 +19,11 @@ c_FILE2		=	\
 
 ###### 目标文件、安装目录配置区
 LIB		=	libsimspider.so
-LIBINST		=	/usr/local/lib
+LIBINST		=	$(HOME)/lib
 BIN		=	simspider
-BININST		=	/usr/local/bin
+BININST		=	$(HOME)/bin
 HDER		=	libsimspider.h
-HDERINST	=	/usr/local/include/simspider
+HDERINST	=	$(HOME)/include/simspider
 
 ###### 编译选项
 CFLAGS		=	-I. \

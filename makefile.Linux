@@ -1,4 +1,5 @@
 # 此文件由makelocal.sh自动生成
+MAKEFILE_POSTFIX=.Linux
 # 此文件由makedir.sh自动生成
 ############################################################
 # 项目名 :
@@ -24,18 +25,12 @@ all		:	make
 # make规则
 .PHONY:make
 make	:
+	ps
 	@for i in $(DIROBJS) ; do \
 		if [ -d "$$i" ] ; then \
-			if [ -f "$$i/makefile.Linux" ] ; then \
+			if [ -f "$$i/makefile$(MAKEFILE_POSTFIX)" ] ; then \
 				$(CD) $$i ; \
-				make -f makefile.Linux ; \
-				if [ $$? -ne 0 ] ; then \
-					exit 1 ; \
-				fi ; \
-				$(CD) .. ; \
-			elif [ -f "$$i/makefile" ] ; then \
-				$(CD) $$i ; \
-				make ; \
+				$(MAKE) -f makefile$(MAKEFILE_POSTFIX) ; \
 				if [ $$? -ne 0 ] ; then \
 					exit 1 ; \
 				fi ; \
@@ -49,16 +44,9 @@ make	:
 clean	:
 	@for i in $(DIROBJS) ; do \
 		if [ -d "$$i" ] ; then \
-			if [ -f "$$i/makefile.Linux" ] ; then \
+			if [ -f "$$i/makefile$(MAKEFILE_POSTFIX)" ] ; then \
 				$(CD) $$i ; \
-				make -f makefile.Linux clean ; \
-				if [ $$? -ne 0 ] ; then \
-					exit 1 ; \
-				fi ; \
-				$(CD) .. ; \
-			elif [ -f "$$i/makefile" ] ; then \
-				$(CD) $$i ; \
-				make clean ; \
+				$(MAKE) -f makefile$(MAKEFILE_POSTFIX) clean ; \
 				if [ $$? -ne 0 ] ; then \
 					exit 1 ; \
 				fi ; \
@@ -70,18 +58,12 @@ clean	:
 # install规则
 .PHONY:install
 install	:
+	echo $(MAKE)
 	@for i in $(DIROBJS) ; do \
 		if [ -d "$$i" ] ; then \
-			if [ -f "$$i/makefile.Linux" ] ; then \
+			if [ -f "$$i/makefile$(MAKEFILE_POSTFIX)" ] ; then \
 				$(CD) $$i ; \
-				make -f makefile.Linux install ; \
-				if [ $$? -ne 0 ] ; then \
-					exit 1 ; \
-				fi ; \
-				$(CD) .. ; \
-			elif [ -f "$$i/makefile" ] ; then \
-				$(CD) $$i ; \
-				make install ; \
+				$(MAKE) -f makefile$(MAKEFILE_POSTFIX) install ; \
 				if [ $$? -ne 0 ] ; then \
 					exit 1 ; \
 				fi ; \
