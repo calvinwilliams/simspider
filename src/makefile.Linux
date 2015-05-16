@@ -40,25 +40,23 @@ c_FILE2		=	\
 
 ###### 目标文件、安装目录配置区
 LIB		=	libsimspider.so
-LIBINST		=	/usr/lib
+LIBINST		=	/usr/local/lib
 BIN		=	simspider
-BININST		=	/usr/bin
+BININST		=	/usr/local/bin
 HDER		=	libsimspider.h
-HDERINST	=	/usr/include/simspider
+HDERINST	=	/usr/local/include/simspider
 
 ###### 编译选项
 CFLAGS		=	-I. \
-			-I$(HOME)/include \
-			-I/usr/include \
+			-I/usr/local/include \
 
 ###### 链接选项
 LFLAGS		=	-L. \
-			-L$(HOME)/lib \
 			-L/usr/lib \
 			-lcurl \
 
 ###### 额外宏定义区
-CLEAN_ADDITION	=
+CLEAN_ADDITION	=	simspider.log
 
 ###### 加载mktpl模板库
 # 最终目标列表

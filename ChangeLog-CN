@@ -1,5 +1,6 @@
 ver 2.6.5	2015-04-09	calvin
 		* 优化内存占用
+		* 调整了makefile*
 
 ver 2.6.4	2015-03-30	calvin
 		* 编写doc/simspider.vsd

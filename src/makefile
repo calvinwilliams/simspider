@@ -19,21 +19,18 @@ c_FILE2		=	\
 
 ###### 目标文件、安装目录配置区
 LIB		=	libsimspider.so
-LIBINST		=	$(HOME)/exlib
+LIBINST		=	/usr/local/lib
 BIN		=	simspider
-BININST		=	$(HOME)/exbin
+BININST		=	/usr/local/bin
 HDER		=	libsimspider.h
-HDERINST	=	$(HOME)/exinc/simspider
+HDERINST	=	/usr/local/include/simspider
 
 ###### 编译选项
 CFLAGS		=	-I. \
-			-I$(HOME)/include \
-			-I/usr/include \
+			-I/usr/local/include \
 
 ###### 链接选项
 LFLAGS		=	-L. \
-			-L$(HOME)/exlib \
-			-L$(HOME)/lib \
 			-L/usr/lib \
 			-lcurl \
 
@@ -56,7 +53,4 @@ libsimspider.so		:	$(c_FILE_o)
 
 simspider		:	$(c_FILE2_o)
 	$(CC) $(ESOFLAGS) -o $@ $(c_FILE2_o) $(LFLAGS) -lsimspider
-
-aaa		:	aaa.o
-	$(CC) $(ESOFLAGS) -o $@ aaa.o $(LFLAGS) -lsimspider
 
