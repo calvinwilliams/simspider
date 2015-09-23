@@ -17,8 +17,8 @@
 #include "LOGC.h"
 #include "libsimspider.h"
 
-char	__SIMSPIDER_VERSION_2_6_5[] = "2.6.5" ;
-char	*__SIMSPIDER_VERSION = __SIMSPIDER_VERSION_2_6_5 ;
+char	__SIMSPIDER_VERSION_2_6_6[] = "2.6.6" ;
+char	*__SIMSPIDER_VERSION = __SIMSPIDER_VERSION_2_6_6 ;
 
 struct SimSpiderEnv
 {
@@ -1521,6 +1521,7 @@ static int FetchTasksFromRequestQueue( struct SimSpiderEnv *penv , int *p_still_
 				}
 				return nret;
 			}
+			curl_easy_setopt( pdqu->curl , CURLOPT_POSTFIELDS , pdqu->body.base );
 		}
 		
 		curl_multi_add_handle( penv->curls , pdqu->curl );

@@ -1,3 +1,6 @@
+ver 2.6.6	2015-09-23	calvin
+		* Fixed some bugs
+
 ver 2.6.5	2015-04-09	calvin
 		* Optimize memory used
 		* Adjust makefile*
