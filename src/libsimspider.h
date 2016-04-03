@@ -222,6 +222,14 @@ _WINDLL_FUNC int ResizeDoneQueue( struct SimSpiderEnv *penv , long new_size );
 
 /********* LOGC *********/
 
+#ifndef LOGLEVEL_DEBUG
+#define LOGLEVEL_DEBUG		0
+#define LOGLEVEL_INFO		1
+#define LOGLEVEL_WARN		2
+#define LOGLEVEL_ERROR		3
+#define LOGLEVEL_FATAL		4
+#endif
+
 _WINDLL_FUNC void SetLogFile( char *format , ... );
 _WINDLL_FUNC void SetLogFileV( char *format , va_list valist );
 _WINDLL_FUNC void SetLogLevel( int log_level );

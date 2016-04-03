@@ -1271,7 +1271,7 @@ size_t CurlBodyProc( char *buffer , size_t size , size_t nmemb , void *p )
 	return size*nmemb;
 }
 
-size_t CurlDebugProc( CURL *curl , curl_infotype type , char *buffer , size_t size , void *p )
+int CurlDebugProc( CURL *curl , curl_infotype type , char *buffer , size_t size , void *p )
 {
 	if( type == CURLINFO_HEADER_IN || type == CURLINFO_HEADER_OUT )
 	{
@@ -1434,7 +1434,7 @@ static int FetchTasksFromRequestQueue( struct SimSpiderEnv *penv , int *p_still_
 			}
 		}
 		
-		if( GetDoneQueueUnitRefererUrl(pdqu)[0] )
+		if( GetDoneQueueUnitRefererUrl(pdqu) && GetDoneQueueUnitRefererUrl(pdqu)[0] )
 		{
 			char		buffer[ 9 + SIMSPIDER_MAXLEN_URL + 1 ] ;
 			
@@ -1846,13 +1846,13 @@ int SimSpiderGo( struct SimSpiderEnv *penv , char *referer_url , char *url )
 			if( msg == NULL )
 				break;
 			
-			curl_easy_getinfo( msg->easy_handle , CURLINFO_PRIVATE , & pdqu );
+			curl_easy_getinfo( msg->easy_handle , CURLINFO_PRIVATE , (void*) & pdqu );
 			
 			if ( msg->msg == CURLMSG_DONE )
 			{
 				if( msg->data.result == CURLE_OK )
 				{
-					int	http_response_code ;
+					long	http_response_code ;
 					
 					InfoLog( __FILE__ , __LINE__ , "curl_easy_perform ok" );
 					
